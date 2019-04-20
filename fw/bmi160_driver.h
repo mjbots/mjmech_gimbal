@@ -1,4 +1,4 @@
-// Copyright 2015 Josh Pieper, jjp@pobox.com.  All rights reserved.
+// Copyright 2015-2019 Josh Pieper, jjp@pobox.com.  All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,23 +14,27 @@
 
 #pragma once
 
-#include "async_types.h"
-#include "euler.h"
-#include "imu_data.h"
-#include "pool_ptr.h"
+#include "mjlib/micro/async_types.h"
+#include "mjlib/micro/persistent_config.h"
+#include "mjlib/micro/pool_ptr.h"
+#include "mjlib/micro/telemetry_manager.h"
 
-class AsyncI2C;
-class Clock;
-class PersistentConfig;
-class TelemetryManager;
+#include "fw/async_i2c.h"
+#include "fw/euler.h"
+#include "fw/imu_data.h"
+#include "fw/millisecond_timer.h"
+
+namespace fw {
 
 class Bmi160Driver {
  public:
-  Bmi160Driver(Pool&, const gsl::cstring_span& name,
-               AsyncI2C&, Clock&, PersistentConfig&, TelemetryManager&);
+  Bmi160Driver(mjlib::micro::Pool&, const std::string_view& name,
+               AsyncI2C&, MillisecondTimer&,
+               mjlib::micro::PersistentConfig&,
+               mjlib::micro::TelemetryManager&);
   ~Bmi160Driver();
 
-  void AsyncStart(ErrorCallback);
+  void AsyncStart(mjlib::micro::ErrorCallback);
   void Poll();
 
   ImuDataSignal* data_signal();
@@ -119,5 +123,7 @@ class Bmi160Driver {
 
  private:
   class Impl;
-  PoolPtr<Impl> impl_;
+  mjlib::micro::PoolPtr<Impl> impl_;
 };
+
+}

@@ -17,8 +17,8 @@
 namespace fw {
 
 namespace {
-struct MoteusErrorCategory : mjlib::micro::error_category {
-  const char* name() const noexcept override { return "moteus"; }
+struct GimbalErrorCategory : mjlib::micro::error_category {
+  const char* name() const noexcept override { return "gimbal"; }
   std::string_view message(int condition) const override {
     switch (static_cast<errc>(condition)) {
       case errc::kSuccess: return "success";
@@ -40,15 +40,16 @@ struct MoteusErrorCategory : mjlib::micro::error_category {
   }
 };
 
-const mjlib::micro::error_category& moteus_error_category() {
-  static MoteusErrorCategory result;
-  return result;
 }
+
+const mjlib::micro::error_category& gimbal_error_category() {
+  static GimbalErrorCategory result;
+  return result;
 }
 
 mjlib::micro::error_code make_error_code(errc err) {
   return mjlib::micro::error_code(
-      static_cast<int>(err), moteus_error_category());
+      static_cast<int>(err), gimbal_error_category());
 }
 
 }

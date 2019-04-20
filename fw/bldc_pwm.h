@@ -1,4 +1,4 @@
-// Copyright 2015 Josh Pieper, jjp@pobox.com.  All rights reserved.
+// Copyright 2015-2019 Josh Pieper, jjp@pobox.com.  All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@
 
 #include <cstdint>
 
+namespace fw {
+
 /// This class lets you set the PWM values for the three phases of a
 /// brushless motor.
 class BldcPwm {
@@ -32,3 +34,5 @@ class BldcPwm {
 
   // TODO jpieper: Probably need ability to read fault flags.
 };
+
+}

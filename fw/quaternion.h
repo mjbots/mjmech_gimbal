@@ -151,10 +151,10 @@ class Quaternion {
 
   template <typename Archive>
   void Serialize(Archive* a) {
-    a->Visit(mjmech::base::MakeNameValuePair(&w_, "w"));
-    a->Visit(mjmech::base::MakeNameValuePair(&x_, "x"));
-    a->Visit(mjmech::base::MakeNameValuePair(&y_, "y"));
-    a->Visit(mjmech::base::MakeNameValuePair(&z_, "z"));
+    a->Visit(mjlib::base::MakeNameValuePair(&w_, "w"));
+    a->Visit(mjlib::base::MakeNameValuePair(&x_, "x"));
+    a->Visit(mjlib::base::MakeNameValuePair(&y_, "y"));
+    a->Visit(mjlib::base::MakeNameValuePair(&z_, "z"));
   }
 
  private:

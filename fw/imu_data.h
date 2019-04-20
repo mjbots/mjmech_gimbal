@@ -1,4 +1,4 @@
-// Copyright 2015 Josh Pieper, jjp@pobox.com.  All rights reserved.
+// Copyright 2015-2019 Josh Pieper, jjp@pobox.com.  All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,10 +14,12 @@
 
 #pragma once
 
-#include "base/visitor.h"
+#include "mjlib/base/visitor.h"
 
-#include "point3d.h"
-#include "static_signal.h"
+#include "fw/point3d.h"
+#include "fw/static_signal.h"
+
+namespace fw {
 
 struct ImuData {
   uint32_t timestamp = {};
@@ -37,3 +39,5 @@ struct ImuData {
 };
 
 typedef StaticSignal<void (const ImuData*)> ImuDataSignal;
+
+}

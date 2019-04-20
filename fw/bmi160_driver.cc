@@ -1,4 +1,4 @@
-// Copyright 2015 Josh Pieper, jjp@pobox.com.  All rights reserved.
+// Copyright 2015-2019 Josh Pieper, jjp@pobox.com.  All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,15 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "bmi160_driver.h"
+#include "fw/bmi160_driver.h"
 
 #include <cmath>
 
-#include "async_i2c.h"
-#include "clock.h"
-#include "persistent_config.h"
-#include "quaternion.h"
-#include "telemetry_manager.h"
+#include "fw/error.h"
+#include "fw/quaternion.h"
+
+namespace fw {
 
 namespace {
 enum class BMI160 {
@@ -102,28 +101,28 @@ uint16_t CalculateGyrRange(uint8_t range) {
 
 class Bmi160Driver::Impl {
  public:
-  Impl(const gsl::cstring_span& name,
+  Impl(const std::string_view& name,
        AsyncI2C& async_i2c,
-       Clock& clock,
-       PersistentConfig& config,
-       TelemetryManager& telemetry)
+       MillisecondTimer& clock,
+       mjlib::micro::PersistentConfig& config,
+       mjlib::micro::TelemetryManager& telemetry)
       : async_i2c_(async_i2c), clock_(clock) {
     config.Register(name, &config_, [this](){ config_needs_update_ = true; });
     data_updater_ = telemetry.Register(name, &data_);
   }
 
-  void AsyncStart(ErrorCallback callback) {
+  void AsyncStart(mjlib::micro::ErrorCallback callback) {
     start_callback_ = callback;
-    ConfigCallback(0);
+    ConfigCallback({});
   }
 
   void Poll() {
     if (delay_end_ != 0) {
-      const uint32_t now = clock_.timestamp();
+      const uint32_t now = clock_.read_us();
       if (now > delay_end_) {
         auto callback = delay_callback_;
-        delay_callback_ = ErrorCallback();
-        callback(0);
+        delay_callback_ = {};
+        callback({});
         delay_end_ = 0;
       }
     }
@@ -143,11 +142,11 @@ class Bmi160Driver::Impl {
         if (config_needs_update_) {
           config_needs_update_ = false;
           data_.state = kInitial;
-          ConfigCallback(0);
+          ConfigCallback({});
           return;
         }
 
-        const uint32_t timestamp = clock_.timestamp();
+        const uint32_t timestamp = clock_.read_us();
         const int32_t delta = timestamp - last_data_read_;
         if (delta < min_operational_delay_) { break; }
 
@@ -161,17 +160,17 @@ class Bmi160Driver::Impl {
     }
   }
 
-  void ConfigCallback(int error) {
+  void ConfigCallback(mjlib::micro::error_code error) {
     const auto callback =
-        [this](int error) { this->ConfigCallback(error); };
+        [this](mjlib::micro::error_code error) { this->ConfigCallback(error); };
 
     if (error) {
       // For now, all configuration errors are fatal.
       Fault(0x10000000 |
             (data_.state << 24) |
             (config_index_ << 16) |
-            error);
-      start_callback_(data_.imu.error);
+            error.value());
+      start_callback_({data_.imu.error, gimbal_error_category()});
       return;
     }
 
@@ -189,7 +188,7 @@ class Bmi160Driver::Impl {
         const uint8_t received_id = static_cast<uint8_t>(buffer_[0]);
         if (received_id != bi(BMI160::CHIP_ID_VALUE)) {
           Fault(0x40000000 | received_id);
-          start_callback_(data_.imu.error);
+          start_callback_({data_.imu.error, gimbal_error_category()});
           return;
         }
 
@@ -235,7 +234,7 @@ class Bmi160Driver::Impl {
 
         config_index_ = 0;
         data_.state = kConfiguring;
-        // fall-through
+        [[fallthrough]];
       }
       case kConfiguring: {
         if (config_index_ >= reg_config_.size() ||
@@ -256,11 +255,11 @@ class Bmi160Driver::Impl {
       case kErrorCheck: {
         if (buffer_[0] != 0) {
           Fault(0x20000000 | static_cast<uint8_t>(buffer_[0]));
-          start_callback_(data_.imu.error);
+          start_callback_({data_.imu.error, gimbal_error_category()});
           return;
         }
         data_.state = kOperational;
-        start_callback_(0);
+        start_callback_({});
         break;
       }
       case kOperational: // fall-through
@@ -274,30 +273,30 @@ class Bmi160Driver::Impl {
     Emit();
   }
 
-  void AsyncRead(BMI160 reg, uint8_t size, ErrorCallback callback) {
+  void AsyncRead(BMI160 reg, uint8_t size, mjlib::micro::ErrorCallback callback) {
     async_i2c_.AsyncRead(config_.address, bi(reg),
-                         gsl::string_span(buffer_, size), callback);
+                         mjlib::base::string_span(buffer_, size), callback);
   }
 
   void AsyncWrite(BMI160 reg, uint8_t size, int delay_ms,
-                  ErrorCallback callback) {
+                  mjlib::micro::ErrorCallback callback) {
     delay_callback_ = callback;
     this->delay_end_ = 0;
     async_i2c_.AsyncWrite(
         config_.address, bi(reg),
-        gsl::cstring_span(buffer_, size),
-        [this, delay_ms](int error) {
+        std::string_view(buffer_, size),
+        [this, delay_ms](mjlib::micro::error_code error) {
           if (error) {
             auto callback = this->delay_callback_;
-            this->delay_callback_ = ErrorCallback();
+            this->delay_callback_ = {};
             callback(error);
           }
-          this->delay_end_ = this->clock_.timestamp() + delay_ms * 10;
+          this->delay_end_ = this->clock_.read_us() + delay_ms * 10;
         });
   }
 
   void Emit() {
-    data_.imu.timestamp = clock_.timestamp();
+    data_.imu.timestamp = clock_.read_us();
     data_updater_();
   }
 
@@ -306,14 +305,14 @@ class Bmi160Driver::Impl {
     // Once that is the case, then we read the whole buffer.
     operational_busy_ = true;
     AsyncRead(BMI160::STATUS, 1,
-              [this](int error) { this->HandleStatusRead(error); });
+              [this](auto error) { this->HandleStatusRead(error); });
   }
 
-  void HandleStatusRead(int error) {
+  void HandleStatusRead(mjlib::micro::error_code error) {
     operational_busy_ = false;
 
     if (error) {
-      data_.i2c_last_error = 0x30000000 | error;
+      data_.i2c_last_error = 0x30000000 | error.value();
       if (data_.i2c_first_error == 0) {
         data_.i2c_first_error = data_.i2c_last_error;
       }
@@ -333,16 +332,16 @@ class Bmi160Driver::Impl {
 
   void StartDataRead() {
     operational_busy_ = true;
-    last_data_start_ = clock_.timestamp();
+    last_data_start_ = clock_.read_us();
     AsyncRead(BMI160::DATA_GYR, sizeof(buffer_),
-              [this](int error) { this->HandleDataRead(error); });
+              [this](auto error) { this->HandleDataRead(error); });
   }
 
-  void HandleDataRead(int error) {
+  void HandleDataRead(mjlib::micro::error_code error) {
     operational_busy_ = false;
 
     if (error) {
-      data_.i2c_last_error = 0x40000000 | error;
+      data_.i2c_last_error = 0x40000000 | error.value();
       if (data_.i2c_first_error == 0) {
         data_.i2c_first_error = data_.i2c_last_error;
       }
@@ -391,7 +390,7 @@ class Bmi160Driver::Impl {
     const int acc_y = data(8);
     const int acc_z = data(10);
 
-    const float kDegToRad = mjmech::base::kPi / 180.0f;
+    constexpr float kDegToRad = M_PI / 180.0f;
     const Quaternion offset =
         Quaternion::FromEuler(config_.offset_deg.scaled(kDegToRad));
     const float gyro_scale = FindGyroScale();
@@ -432,19 +431,19 @@ class Bmi160Driver::Impl {
   }
 
   AsyncI2C& async_i2c_;
-  const Clock& clock_;
+  MillisecondTimer& clock_;
   Config config_;
   Bmi160Data data_;
   ImuDataSignal data_signal_;
-  StaticFunction<void ()> data_updater_;
-  ErrorCallback start_callback_;
+  mjlib::micro::StaticFunction<void ()> data_updater_;
+  mjlib::micro::ErrorCallback start_callback_;
   bool operational_busy_ = false;
   int min_operational_delay_ = 0;
   uint32_t last_data_read_ = 0;
   uint32_t last_data_start_ = 0;
   uint8_t config_index_ = 0;
 
-  ErrorCallback delay_callback_;
+  mjlib::micro::ErrorCallback delay_callback_;
   uint32_t delay_end_ = 0;
   bool config_needs_update_ = false;
 
@@ -461,18 +460,18 @@ class Bmi160Driver::Impl {
   std::array<RegConfig, 4> reg_config_;
 };
 
-Bmi160Driver::Bmi160Driver(Pool& pool,
-                           const gsl::cstring_span& name,
+Bmi160Driver::Bmi160Driver(mjlib::micro::Pool& pool,
+                           const std::string_view& name,
                            AsyncI2C& async_i2c,
-                           Clock& clock,
-                           PersistentConfig& config,
-                           TelemetryManager& telemetry)
+                           MillisecondTimer& clock,
+                           mjlib::micro::PersistentConfig& config,
+                           mjlib::micro::TelemetryManager& telemetry)
   : impl_(&pool, name, async_i2c, clock, config, telemetry) {
 }
 
 Bmi160Driver::~Bmi160Driver() {}
 
-void Bmi160Driver::AsyncStart(ErrorCallback callback) {
+void Bmi160Driver::AsyncStart(mjlib::micro::ErrorCallback callback) {
   impl_->AsyncStart(callback);
 }
 
@@ -482,4 +481,6 @@ ImuDataSignal* Bmi160Driver::data_signal() { return &impl_->data_signal_; }
 
 const Bmi160Driver::Bmi160Data* Bmi160Driver::data() const {
   return &impl_->data_;
+}
+
 }

@@ -36,7 +36,8 @@ struct Point3D {
       case 1: return y;
       case 2: return z;
     }
-    assert(false);
+    MJ_ASSERT(false);
+    return 0.0f;
   }
 
   Point3D operator+(const Point3D& other) const {

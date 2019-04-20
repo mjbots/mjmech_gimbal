@@ -39,6 +39,7 @@ enum class errc {
   kOverTemperature = 13,
 };
 
+const mjlib::micro::error_category& gimbal_error_category();
 mjlib::micro::error_code make_error_code(errc);
 }
 
