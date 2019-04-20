@@ -1,4 +1,4 @@
-// Copyright 2015 Josh Pieper, jjp@pobox.com.  All rights reserved.
+// Copyright 2015-2019 Josh Pieper, jjp@pobox.com.  All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "mahony_imu.h"
+#include "fw/mahony_imu.h"
 
-#include "clock.h"
-#include "persistent_config.h"
-#include "telemetry_manager.h"
+#include "mjlib/base/tokenizer.h"
+
+namespace fw {
 
 /// @file this implementation was inspired by Seb Madgwick's IMU
 /// algorithms, although are not directly copied from any of them.
@@ -38,14 +38,15 @@ struct Config {
 
 class MahonyImu::Impl {
  public:
-  Impl(Clock& clock,
-       PersistentConfig& config, TelemetryManager& telemetry,
+  Impl(MillisecondTimer& clock,
+       mjlib::micro::PersistentConfig& config,
+       mjlib::micro::TelemetryManager& telemetry,
        ImuDataSignal& imu_signal)
       : clock_(clock) {
-    data_updater_ = telemetry.Register(gsl::ensure_z("ahrs"), &data_);
+    data_updater_ = telemetry.Register("ahrs", &data_);
     imu_signal.Connect([this](const ImuData* data) { this->HandleImu(data); });
 
-    config.Register(gsl::ensure_z("mahony"), &config_, [](){});
+    config.Register("mahony", &config_, [](){});
   }
 
   void HandleImu(const ImuData* data) {
@@ -55,12 +56,12 @@ class MahonyImu::Impl {
       case kNumStates: { assert(false); }
     }
 
-    data_.ahrs.timestamp = clock_.timestamp();
+    data_.ahrs.timestamp = clock_.read_us();
     data_updater_();
   }
 
   void DoInitialBias(const ImuData* data) {
-    const auto now = clock_.timestamp();
+    const auto now = clock_.read_us();
 
     if (data_.start_timestamp == 0) {
       data_.start_timestamp = now;
@@ -75,7 +76,7 @@ class MahonyImu::Impl {
         data->gyro_dps.scaled(-1.0 / t);
 
     const uint32_t delta = now - data_.start_timestamp;
-    const float delta_s = static_cast<float>(delta) / clock_.ticks_per_second();
+    const float delta_s = static_cast<float>(delta) / 1000000.0f;
 
     if (delta_s >= config_.bias_period_s) {
       // Initialize our attitude with the current accelerometer
@@ -99,9 +100,9 @@ class MahonyImu::Impl {
   }
 
   void DoOperating(const ImuData* data) {
-    const auto now = clock_.timestamp();
+    const auto now = clock_.read_us();
 
-    const float kDegToRad = mjmech::base::kPi / 180.0f;
+    const float kDegToRad = M_PI / 180.0f;
     const float kRadToDeg = 1.0f / kDegToRad;
 
     const Point3D a_g = data->accel_g;
@@ -148,7 +149,7 @@ class MahonyImu::Impl {
 
     // Update our measured rate output.
     data_.bias_count++;
-    const auto ticks_per_second = clock_.ticks_per_second();
+    const auto ticks_per_second = 1000000;
     if ((now - data_.start_timestamp) > ticks_per_second) {
       data_.start_timestamp += ticks_per_second;
       data_.measured_rate_hz = data_.bias_count;
@@ -163,20 +164,20 @@ class MahonyImu::Impl {
     data_signal_(&data_.ahrs);
   }
 
-  void WriteOK(const CommandManager::Response response) {
-    WriteMessage(gsl::ensure_z("OK\r\n"), response);
+  void WriteOK(const mjlib::micro::CommandManager::Response response) {
+    WriteMessage("OK\r\n", response);
   }
 
-  void UnknownCommand(const CommandManager::Response& response) {
-    WriteMessage(gsl::ensure_z("unknown command\r\n"), response);
+  void UnknownCommand(const mjlib::micro::CommandManager::Response& response) {
+    WriteMessage("unknown command\r\n", response);
   }
 
-  void WriteMessage(const gsl::cstring_span& message,
-                    const CommandManager::Response& response) {
-    AsyncWrite(*response.stream, message, response.callback);
+  void WriteMessage(const std::string_view& message,
+                    const mjlib::micro::CommandManager::Response& response) {
+    mjlib::micro::AsyncWrite(*response.stream, message, response.callback);
   }
 
-  Clock& clock_;
+  MillisecondTimer& clock_;
 
   enum State {
     kInitialBias,
@@ -210,16 +211,16 @@ class MahonyImu::Impl {
     }
   };
   Data data_;
-  StaticFunction<void ()> data_updater_;
+  mjlib::micro::StaticFunction<void ()> data_updater_;
   AhrsDataSignal data_signal_;
 
   Config config_;
 };
 
-MahonyImu::MahonyImu(Pool& pool,
-                     Clock& clock,
-                     PersistentConfig& config,
-                     TelemetryManager& telemetry,
+MahonyImu::MahonyImu(mjlib::micro::Pool& pool,
+                     MillisecondTimer& clock,
+                     mjlib::micro::PersistentConfig& config,
+                     mjlib::micro::TelemetryManager& telemetry,
                      ImuDataSignal& imu_signal)
     : impl_(&pool, clock, config, telemetry, imu_signal) {}
 
@@ -237,14 +238,16 @@ void MahonyImu::RestartBiasInitialization() {
   impl_->data_ = Impl::Data();
 }
 
-void MahonyImu::Command(const gsl::cstring_span& command,
-                        const CommandManager::Response& response) {
-  Tokenizer tokenizer(command, " ");
+void MahonyImu::Command(const std::string_view& command,
+                        const mjlib::micro::CommandManager::Response& response) {
+  mjlib::base::Tokenizer tokenizer(command, " ");
   auto cmd = tokenizer.next();
-  if (cmd == gsl::ensure_z("restart")) {
+  if (cmd == "restart") {
     RestartBiasInitialization();
     impl_->WriteOK(response);
   } else {
     impl_->UnknownCommand(response);
   }
+}
+
 }

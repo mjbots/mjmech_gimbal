@@ -44,6 +44,8 @@ mbed_binary(
         "imu_data.h",
         "irq_callback_table.h",
         "irq_callback_table.cc",
+        "mahony_imu.h",
+        "mahony_imu.cc",
         "math_util.h",
         "millisecond_timer.h",
         "point3d.h",

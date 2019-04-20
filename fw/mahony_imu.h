@@ -1,4 +1,4 @@
-// Copyright 2015 Josh Pieper, jjp@pobox.com.  All rights reserved.
+// Copyright 2015-2019 Josh Pieper, jjp@pobox.com.  All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,19 +14,24 @@
 
 #pragma once
 
-#include "ahrs_data.h"
-#include "command_manager.h"
-#include "imu_data.h"
-#include "pool_ptr.h"
+#include "mjlib/micro/command_manager.h"
+#include "mjlib/micro/pool_ptr.h"
+#include "mjlib/micro/persistent_config.h"
+#include "mjlib/micro/telemetry_manager.h"
 
-class Clock;
-class PersistentConfig;
-class TelemetryManager;
+#include "fw/ahrs_data.h"
+#include "fw/imu_data.h"
+#include "fw/millisecond_timer.h"
+
+namespace fw {
 
 class MahonyImu {
  public:
-  MahonyImu(Pool&, Clock&, PersistentConfig&,
-            TelemetryManager&, ImuDataSignal&);
+  MahonyImu(mjlib::micro::Pool&,
+            MillisecondTimer&,
+            mjlib::micro::PersistentConfig&,
+            mjlib::micro::TelemetryManager&,
+            ImuDataSignal&);
   ~MahonyImu();
 
   const AhrsData& data() const;
@@ -35,9 +40,12 @@ class MahonyImu {
   /// Re-enter the initial bias determination mode.
   void RestartBiasInitialization();
 
-  void Command(const gsl::cstring_span&, const CommandManager::Response&);
+  void Command(const std::string_view&,
+               const mjlib::micro::CommandManager::Response&);
 
  private:
   class Impl;
-  PoolPtr<Impl> impl_;
+  mjlib::micro::PoolPtr<Impl> impl_;
 };
+
+}
