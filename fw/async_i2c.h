@@ -1,4 +1,4 @@
-// Copyright 2015 Josh Pieper, jjp@pobox.com.  All rights reserved.
+// Copyright 2015-2019 Josh Pieper, jjp@pobox.com.  All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,10 +14,10 @@
 
 #pragma once
 
-#include "base/gsl/gsl-lite.h"
+#include "mjlib/micro/async_types.h"
+#include "mjlib/micro/static_function.h"
 
-#include "async_types.h"
-#include "static_function.h"
+namespace fw {
 
 class AsyncI2C {
  public:
@@ -27,10 +27,12 @@ class AsyncI2C {
 
   virtual void AsyncRead(uint8_t device_address,
                          uint8_t memory_address,
-                         const gsl::string_span& buffer,
-                         ErrorCallback) = 0;
+                         mjlib::base::string_span buffer,
+                         mjlib::micro::ErrorCallback) = 0;
   virtual void AsyncWrite(uint8_t device_address,
                           uint8_t memory_address,
-                          const gsl::cstring_span& buffer,
-                          ErrorCallback) = 0;
+                          const std::string_view& buffer,
+                          mjlib::micro::ErrorCallback) = 0;
 };
+
+}

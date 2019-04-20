@@ -1,4 +1,4 @@
-// Copyright 2015 Josh Pieper, jjp@pobox.com.  All rights reserved.
+// Copyright 2015-2019 Josh Pieper, jjp@pobox.com.  All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,9 +14,9 @@
 
 #pragma once
 
-#include "base/gsl/gsl-lite.h"
+#include "mjlib/micro/async_types.h"
 
-#include "async_types.h"
+namespace fw {
 
 class AsyncSPI {
  public:
@@ -24,7 +24,8 @@ class AsyncSPI {
   AsyncSPI(const AsyncSPI&) = delete;
   virtual ~AsyncSPI() {}
 
-  virtual void AsyncTransaction(const gsl::cstring_span& tx_buffer,
-                                const gsl::string_span& rx_buffer,
-                                ErrorCallback) = 0;
+  virtual void AsyncTransaction(const std::string_view& tx_buffer,
+                                const mjlib::base::string_span& rx_buffer,
+                                mjlib::micro::ErrorCallback) = 0;
 };
+}

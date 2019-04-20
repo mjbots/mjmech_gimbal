@@ -1,4 +1,4 @@
-// Copyright 2014-2015 Josh Pieper, jjp@pobox.com.  All rights reserved.
+// Copyright 2014-2019 Josh Pieper, jjp@pobox.com.  All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,9 +23,11 @@ using ::log1p;
 
 #include <Eigen/Core>
 
-#include "euler.h"
-#include "math_util.h"
-#include "point3d.h"
+#include "fw/euler.h"
+#include "fw/math_util.h"
+#include "fw/point3d.h"
+
+namespace fw {
 
 class Quaternion;
 inline Quaternion operator*(const Quaternion& lhs,
@@ -178,4 +180,6 @@ inline Quaternion operator*(const Quaternion& lhs,
                     b * e + a * f + c * h - d * g,
                     a * g - b * h + c * e + d * f,
                     a * h + b * g - c * f + d * e);
+}
+
 }

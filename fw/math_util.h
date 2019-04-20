@@ -1,4 +1,4 @@
-// Copyright 2014-2016 Josh Pieper, jjp@pobox.com.  All rights reserved.
+// Copyright 2014-2019 Josh Pieper, jjp@pobox.com.  All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,6 +21,8 @@
 #define M_PI_2 (1.5707963267948966)
 #endif
 
+namespace fw {
+
 inline float WrapNegPiToPi(float value) {
   if (value >= -M_PI && value <= M_PI) { return value; }
   if (value > 0.0) {
@@ -36,4 +38,6 @@ inline float Radians(float value) {
 
 inline float Degrees(float value) {
   return 180.0 * value / M_PI;
+}
+
 }

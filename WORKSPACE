@@ -23,6 +23,10 @@ load("//tools/workspace:default.bzl", "add_default_repositories")
 
 add_default_repositories()
 
+load("@com_github_mjbots_bazel_deps//tools/workspace:default.bzl",
+     bazel_deps_add = "add_default_repositories")
+bazel_deps_add()
+
 load("@com_github_mjbots_rules_mbed//:rules.bzl", mbed_register = "mbed_register")
 
 mbed_register(

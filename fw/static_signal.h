@@ -1,4 +1,4 @@
-// Copyright 2015 Josh Pieper, jjp@pobox.com.  All rights reserved.
+// Copyright 2015-2019 Josh Pieper, jjp@pobox.com.  All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,7 +16,9 @@
 
 #include <assert.h>
 
-#include "static_function.h"
+#include "mjlib/base/static_function.h"
+
+namespace fw {
 
 template <typename Signature, std::size_t Size=2>
 struct StaticSignal;
@@ -44,3 +46,5 @@ struct StaticSignal<R(Args...), Size> {
  private:
   std::array<StaticFunction<R(Args...)>, Size> elements_;
 };
+
+}

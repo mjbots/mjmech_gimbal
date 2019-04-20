@@ -1,4 +1,4 @@
-// Copyright 2014-2015 Josh Pieper, jjp@pobox.com.  All rights reserved.
+// Copyright 2014-2019 Josh Pieper, jjp@pobox.com.  All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,7 +18,9 @@
 
 #include <cmath>
 
-#include "base/visitor.h"
+#include "mjlib/base/visitor.h"
+
+namespace fw {
 
 struct Point3D {
   float x;
@@ -82,3 +84,5 @@ struct Point3D {
     a->Visit(MJ_NVP(z));
   }
 };
+
+}

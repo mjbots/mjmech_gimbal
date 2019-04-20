@@ -1,4 +1,4 @@
-// Copyright 2015 Josh Pieper, jjp@pobox.com.  All rights reserved.
+// Copyright 2015-2019 Josh Pieper, jjp@pobox.com.  All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,22 +14,25 @@
 
 #pragma once
 
-#include "base/visitor.h"
+#include "mjlib/base/visitor.h"
 
-#include "async_types.h"
-#include "pool_ptr.h"
+#include "mjlib/micro/async_types.h"
+#include "mjlib/micro/pool_ptr.h"
+#include "mjlib/micro/persistent_config.h"
+#include "mjlib/micro/telemetry_manager.h"
 
-class AsyncI2C;
-class AsyncSPI;
-class Clock;
-class PersistentConfig;
-class TelemetryManager;
+#include "fw/async_i2c.h"
+#include "fw/async_spi.h"
+#include "fw/millisecond_timer.h"
+
+namespace fw {
 
 class As5048Driver {
  public:
-  As5048Driver(Pool&, const gsl::cstring_span& name,
-               AsyncI2C*, AsyncSPI*, Clock&, PersistentConfig&,
-               TelemetryManager&);
+  As5048Driver(mjlib::micro::Pool&, const std::string_view& name,
+               AsyncI2C*, AsyncSPI*, MillisecondTimer&,
+               mjlib::micro::PersistentConfig&,
+               mjlib::micro::TelemetryManager&);
   ~As5048Driver();
 
   struct Data {
@@ -49,10 +52,12 @@ class As5048Driver {
     }
   };
 
-  void AsyncRead(Data*, ErrorCallback);
+  void AsyncRead(Data*, mjlib::micro::ErrorCallback);
   void Poll();
 
  private:
   class Impl;
-  PoolPtr<Impl> impl_;
+  mjlib::micro::PoolPtr<Impl> impl_;
 };
+
+}

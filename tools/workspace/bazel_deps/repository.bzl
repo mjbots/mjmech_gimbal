@@ -14,14 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("//tools/workspace/bazel_deps:repository.bzl", "bazel_deps_repository")
-load("//tools/workspace/moteus:repository.bzl", "moteus_repository")
-load("//tools/workspace/rules_mbed:repository.bzl", "rules_mbed_repository")
+load("//tools/workspace:github_archive.bzl", "github_archive")
 
-def add_default_repositories(excludes = []):
-    if "com_github_mjbots_rules_bazel" not in excludes:
-        rules_mbed_repository()
-    if "com_github_mjbots_moteus" not in excludes:
-        moteus_repository(name = "moteus")
-    if "com_github_mjbots_bazel_deps" not in excludes:
-        bazel_deps_repository(name = "com_github_mjbots_bazel_deps")
+def bazel_deps_repository(name):
+    github_archive(
+        name = name,
+        repo = "mjbots/bazel_deps",
+        commit = "44eb2014939844b85967ea4500360778035d6df2",
+        sha256 = "308e2e2e9ef66a3e91cfad62e042e0e4ee8d830250f4b69d07838bf0fad16002",
+    )
