@@ -1,4 +1,4 @@
-// Copyright 2015 Josh Pieper, jjp@pobox.com.  All rights reserved.
+// Copyright 2015-2019 Josh Pieper, jjp@pobox.com.  All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,9 +14,11 @@
 
 #pragma once
 
-#include <assert.h>
+#include "mjlib/base/assert.h"
 
-#include "pwm_pin.h"
+#include "fw/pwm_pin.h"
+
+namespace fw {
 
 class Stm32TimexComplementPwm : public PwmPin {
  public:
@@ -39,10 +41,12 @@ class Stm32TimexComplementPwm : public PwmPin {
       case TIM_CHANNEL_3: { return &htim->Instance->CCR3; }
       case TIM_CHANNEL_4: { return &htim->Instance->CCR4; }
     }
-    assert(false);
+    MJ_ASSERT(false);
     return nullptr;
   }
 
  private:
   volatile uint32_t* const ccr_;
 };
+
+}

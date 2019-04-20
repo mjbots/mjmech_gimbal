@@ -67,6 +67,9 @@ mbed_binary(
         "stm32_serial.h",
         "stm32f446_async_uart.cc",
         "stm32f446_async_uart.h",
+        "stm32_timex_complement_pwm.h",
+        "system_info.h",
+        "system_info.cc",
     ],
     copts = [
         "-Wno-int-in-bool-context",

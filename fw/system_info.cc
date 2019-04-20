@@ -1,4 +1,4 @@
-// Copyright 2015 Josh Pieper, jjp@pobox.com.  All rights reserved.
+// Copyright 2015-2019 Josh Pieper, jjp@pobox.com.  All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "system_info.h"
+#include "fw/system_info.h"
 
-#include "base/visitor.h"
+#include "mjlib/base/visitor.h"
+#include "mjlib/micro/static_function.h"
 
-#include "clock.h"
-#include "static_function.h"
-#include "telemetry_manager.h"
+namespace fw {
 
 namespace {
 struct SystemInfoData {
@@ -41,10 +40,12 @@ struct SystemInfoData {
 
 class SystemInfo::Impl {
  public:
-  Impl(Pool& pool, TelemetryManager& telemetry, Clock& clock)
+  Impl(mjlib::micro::Pool& pool,
+       mjlib::micro::TelemetryManager& telemetry,
+       MillisecondTimer& clock)
       : pool_(pool),
         clock_(clock) {
-    data_updater_ = telemetry.Register(gsl::ensure_z("system_info"), &data_);
+    data_updater_ = telemetry.Register("system_info", &data_);
   }
 
   void PollMillsecond() {
@@ -58,7 +59,7 @@ class SystemInfo::Impl {
     data_.main_loops_per_10ms = main_loops_;
     main_loops_ = 0;
 
-    data_.timestamp = clock_.timestamp();
+    data_.timestamp = clock_.read_us();
     data_.pool_size = pool_.size();
     data_.pool_available = pool_.available();
 
@@ -70,16 +71,18 @@ class SystemInfo::Impl {
     data_updater_();
   }
 
-  Pool& pool_;
-  Clock& clock_;
+  mjlib::micro::Pool& pool_;
+  MillisecondTimer& clock_;
 
   uint8_t ms_count_ = 0;
   uint32_t main_loops_ = 0;
   SystemInfoData data_;
-  StaticFunction<void ()> data_updater_;
+  mjlib::micro::StaticFunction<void ()> data_updater_;
 };
 
-SystemInfo::SystemInfo(Pool& pool, TelemetryManager& telemetry, Clock& clock)
+SystemInfo::SystemInfo(mjlib::micro::Pool& pool,
+                       mjlib::micro::TelemetryManager& telemetry,
+                       MillisecondTimer& clock)
     : impl_(&pool, pool, telemetry, clock) {}
 
 SystemInfo::~SystemInfo() {}
@@ -90,4 +93,6 @@ void SystemInfo::MainLoopCount() {
 
 void SystemInfo::PollMillisecond() {
   impl_->PollMillsecond();
+}
+
 }

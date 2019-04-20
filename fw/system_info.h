@@ -1,4 +1,4 @@
-// Copyright 2015 Josh Pieper, jjp@pobox.com.  All rights reserved.
+// Copyright 2015-2019 Josh Pieper, jjp@pobox.com.  All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,17 +14,19 @@
 
 #pragma once
 
-#include "pool_ptr.h"
+#include "mjlib/micro/pool_ptr.h"
+#include "mjlib/micro/telemetry_manager.h"
 
-class TelemetryManager;
-class Clock;
+#include "fw/millisecond_timer.h"
+
+namespace fw {
 
 /// This class keeps track of things like how many main loops we
 /// execute per primary event, and other system health issues like
 /// memory usage.
 class SystemInfo {
  public:
-  SystemInfo(Pool&, TelemetryManager&, Clock&);
+  SystemInfo(mjlib::micro::Pool&, mjlib::micro::TelemetryManager&, MillisecondTimer&);
   ~SystemInfo();
 
   void MainLoopCount();
@@ -32,5 +34,7 @@ class SystemInfo {
 
  private:
   class Impl;
-  PoolPtr<Impl> impl_;
+  mjlib::micro::PoolPtr<Impl> impl_;
 };
+
+}
