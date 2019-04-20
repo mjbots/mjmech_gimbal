@@ -14,8 +14,7 @@
 
 #pragma once
 
-#include <assert.h>
-
+#include "mjlib/base/assert.h"
 #include "mjlib/micro/static_function.h"
 
 namespace fw {
@@ -34,7 +33,7 @@ struct StaticSignal<R(Args...), Size> {
         return;
       }
     }
-    assert(false);
+    MJ_ASSERT(false);
   }
 
   R operator()(Args... args) const {

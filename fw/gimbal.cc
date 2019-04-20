@@ -16,17 +16,22 @@
 
 #include <cstring>
 
-// #include "base/visitor.h"
+#include "mjlib/base/visitor.h"
 
+#include "stm32f4xx_hal.h"
 
-// #include "gpio.h"
-// #include "i2c.h"
-// #include "iwdg.h"
-// #include "tim.h"
+#include "mjlib/micro/async_exclusive.h"
+#include "mjlib/micro/command_manager.h"
+#include "mjlib/micro/persistent_config.h"
+#include "mjlib/micro/pool_ptr.h"
+#include "mjlib/micro/telemetry_manager.h"
+#include "mjlib/multiplex/micro_server.h"
 
-// #include "stm32f4xx_hal_tim_ex.h"
+#include "fw/millisecond_timer.h"
+#include "fw/stm32_flash.h"
+#include "fw/stm32f446_async_uart.h"
 
-// #include "as5048_driver.h"
+// #include "fw/as5048_driver.h"
 // #include "bldc_encoder.h"
 // #include "bmi160_driver.h"
 // #include "command_manager.h"
@@ -37,10 +42,8 @@
 // #include "lock_manager.h"
 // #include "mahony_imu.h"
 // #include "persistent_config.h"
-// #include "pool_ptr.h"
 // #include "stm32_analog_sampler.h"
 // #include "stm32_bldc_pwm.h"
-// #include "stm32_clock.h"
 // #include "stm32_flash.h"
 // #include "stm32_gpio_pin.h"
 // #include "stm32_hal_i2c.h"
@@ -56,47 +59,91 @@
 // void *operator new(size_t size) throw() { return malloc(size); }
 // void operator delete(void* p) throw() { free(p); }
 
-// namespace {
-// struct SystemStatus {
-//   uint32_t timestamp = 0;
-//   bool command_manager_init = false;
-//   bool bmi160_init = false;
-//   int32_t bmi160_error = 0;
-//   bool herkulex_init = false;
-//   int32_t herkulex_error = 0;
+namespace {
+struct SystemStatus {
+  uint32_t timestamp = 0;
+  bool command_manager_init = false;
+  bool bmi160_init = false;
+  int32_t bmi160_error = 0;
+  bool herkulex_init = false;
+  int32_t herkulex_error = 0;
 
-//   template <typename Archive>
-//   void Serialize(Archive* a) {
-//     a->Visit(MJ_NVP(timestamp));
-//     a->Visit(MJ_NVP(command_manager_init));
-//     a->Visit(MJ_NVP(bmi160_init));
-//     a->Visit(MJ_NVP(bmi160_error));
-//     a->Visit(MJ_NVP(herkulex_init));
-//     a->Visit(MJ_NVP(herkulex_error));
-//   }
-// };
+  template <typename Archive>
+  void Serialize(Archive* a) {
+    a->Visit(MJ_NVP(timestamp));
+    a->Visit(MJ_NVP(command_manager_init));
+    a->Visit(MJ_NVP(bmi160_init));
+    a->Visit(MJ_NVP(bmi160_error));
+    a->Visit(MJ_NVP(herkulex_init));
+    a->Visit(MJ_NVP(herkulex_error));
+  }
+};
 
-// void UpdateLEDs(uint32_t count) {
-//   int cycle = count / 250;
-//   if (cycle & 1) {
-//     HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_SET);
-//   } else {
-//     HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_RESET);
-//   }
-//   if (cycle & 2) {
-//     HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_SET);
-//   } else {
-//     HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_RESET);
-//   }
-//   if (cycle & 4) {
-//     HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_SET);
-//   } else {
-//     HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_RESET);
-//   }
-// }
-// }
+void UpdateLEDs(uint32_t count) {
+  int cycle = count / 250;
+  if (cycle & 1) {
+    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_SET);
+  } else {
+    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_RESET);
+  }
+  if (cycle & 2) {
+    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_SET);
+  } else {
+    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_RESET);
+  }
+  if (cycle & 4) {
+    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_SET);
+  } else {
+    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_RESET);
+  }
+}
+}
 
-// int main(void) {
+using namespace fw;
+using namespace mjlib;
+
+int main(void) {
+  MillisecondTimer clock;
+  micro::SizedPool<12288> pool;
+
+  Stm32F446AsyncUart rs485(&pool, &clock, []() {
+      Stm32F446AsyncUart::Options options;
+      options.tx = PC_6;
+      options.rx = PC_7;
+      options.dir = PC_8;
+      options.baud_rate = 3000000;
+      return options;
+    }());
+
+  multiplex::MicroServer multiplex_protocol(&pool, &rs485, {});
+  micro::AsyncStream* serial = multiplex_protocol.MakeTunnel(1);
+
+  micro::AsyncExclusive<micro::AsyncWriteStream> write_stream(serial);
+  micro::CommandManager command_manager(&pool, serial, &write_stream);
+  micro::TelemetryManager telemetry_manager(
+      &pool, &command_manager, &write_stream);
+  Stm32Flash flash_interface;
+  micro::PersistentConfig persistent_config(pool, command_manager, flash_interface);
+
+  persistent_config.Register("id", multiplex_protocol.config(), [](){});
+  persistent_config.Load();
+
+  command_manager.AsyncStart();
+  multiplex_protocol.Start(nullptr);
+
+  auto old_time = clock.read_ms();
+
+  for (;;) {
+    rs485.Poll();
+
+    const auto new_time = clock.read_ms();
+    if (new_time != old_time) {
+      telemetry_manager.PollMillisecond();
+
+      old_time = new_time;
+    }
+  }
+
 //   UsbCdcStream usb_cdc;
 //   UartStream uart(&huart6, GPIOC, GPIO_PIN_6);
 
@@ -240,8 +287,12 @@
 //     pitch_encoder.Poll();
 //     system_info.MainLoopCount();
 //   }
-// }
-// }
 
-int main(void) {
+  return 0;
+}
+
+extern "C" {
+  void abort() {
+    mbed_die();
+  }
 }

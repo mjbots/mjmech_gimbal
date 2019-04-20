@@ -14,10 +14,9 @@
 
 #pragma once
 
-#include <assert.h>
-
 #include <cmath>
 
+#include "mjlib/base/assert.h"
 #include "mjlib/base/visitor.h"
 
 namespace fw {

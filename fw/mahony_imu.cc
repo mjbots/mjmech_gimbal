@@ -53,7 +53,7 @@ class MahonyImu::Impl {
     switch (data_.state) {
       case kInitialBias: { DoInitialBias(data); break; }
       case kOperating: { DoOperating(data); break; }
-      case kNumStates: { assert(false); }
+      case kNumStates: { MJ_ASSERT(false); }
     }
 
     data_.ahrs.timestamp = clock_.read_us();

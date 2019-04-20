@@ -47,7 +47,7 @@ class Stm32AnalogSampler::Impl {
 
       const uint16_t value = HAL_ADC_GetValue(&hadc1);
       switch (state_) {
-        case kIdle: { assert(false); break; }
+        case kIdle: { MJ_ASSERT(false); break; }
         case kVRefInt: { data_.raw_vrefint = value; break; }
         case kVBat: { data_.raw_vbat = value; break; }
         case k8V: { data_.raw_8v = value; break; }
@@ -79,14 +79,14 @@ class Stm32AnalogSampler::Impl {
     adc_conf.SamplingTime = ADC_SAMPLETIME_480CYCLES;
     adc_conf.Channel = [&]() -> uint32_t {
       switch (state_) {
-        case kIdle: { assert(false); return 0; }
+        case kIdle: { MJ_ASSERT(false); return 0; }
         case kVRefInt: { return ADC_CHANNEL_VREFINT; }
         case kVBat: { return ADC_CHANNEL_VBAT; }
         case k8V: { return ADC_CHANNEL_11; }
         case k12V: { return ADC_CHANNEL_12; }
         case kTemperature: { return ADC_CHANNEL_TEMPSENSOR; }
       }
-      assert(false);
+      MJ_ASSERT(false);
       return 0;
     }();
 

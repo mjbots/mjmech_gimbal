@@ -43,7 +43,7 @@ enum AS5048 {
 };
 
 void MakeSpiRead(char* buffer, uint16_t addr) {
-  assert(addr <= 0x3fff);
+  MJ_ASSERT(addr <= 0x3fff);
 
   uint8_t* const out = reinterpret_cast<uint8_t*>(buffer);
   const uint8_t lsb = addr & 0xff;
@@ -92,7 +92,7 @@ class As5048Driver::Impl {
     } else if (async_spi_) {
       ReadSPI();
     } else {
-      assert(false);
+      MJ_ASSERT(false);
     }
   }
 
@@ -135,8 +135,8 @@ class As5048Driver::Impl {
   }
 
   void ReadSPI() {
-    assert(!spi_in_progress_);
-    assert(spi_read_position_ == -1);
+    MJ_ASSERT(!spi_in_progress_);
+    MJ_ASSERT(spi_read_position_ == -1);
     spi_read_position_ = 0;
   }
 

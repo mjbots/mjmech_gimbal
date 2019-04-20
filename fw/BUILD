@@ -59,6 +59,8 @@ mbed_binary(
         "stm32_analog_sampler.cc",
         "stm32_bldc_pwm.h",
         "stm32_bldc_pwm.cc",
+        "stm32_flash.h",
+        "stm32_flash.cc",
         "stm32_hal_i2c.h",
         "stm32_hal_i2c.cc",
         "stm32_hal_spi.h",
@@ -89,6 +91,7 @@ mbed_binary(
         "@moteus//mjlib/micro:pool_ptr",
         "@moteus//mjlib/micro:static_function",
         "@moteus//mjlib/micro:telemetry_manager",
+        "@moteus//mjlib/multiplex:micro_server",
     ],
     linker_script = "stm32f446.ld",
 )
@@ -100,9 +103,22 @@ OCD = (
 )
 
 genrule(
+    name = "bin",
+    tags = ["manual"],
+    srcs = ["gimbal.elf"],
+    outs = [
+        "gimbal.08000000.bin",
+        "gimbal.08010000.bin",
+    ],
+    cmd = ("$(OBJCOPY) -Obinary -j .text -j .ARM.extab -j .ARM.exidx -j .data -j .bss $(location gimbal.elf) $(location gimbal.08010000.bin) && " +
+           "$(OBJCOPY) -Obinary -j .isr_vector $(location gimbal.elf) $(location gimbal.08000000.bin)"),
+    output_to_bindir = True,
+)
+
+genrule(
     name = "flash",
     tags = ["manual"],
-    srcs = ["gimbal.bin"],
+    srcs = ["gimbal.08000000.bin", "gimbal.08010000.bin"],
     outs = ["flash.stamp"],
-    cmd = (OCD + "-c init -c \"reset_config none separate; program $(location gimbal.bin) verify 0x8000000 reset exit 0x8000000\" && touch $@"),
+    cmd = (OCD + "-c init -c \"reset_config none separate; program $(location gimbal.0x8000000.bin) verify 0x8000000; program $(location gimbal.08010000.bin) verify reset exit 0x8010000\" && touch $@"),
 )

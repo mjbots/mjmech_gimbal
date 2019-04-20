@@ -265,7 +265,7 @@ class Bmi160Driver::Impl {
       case kOperational: // fall-through
       case kFault:
       case kNumStates: {
-        assert(false);
+        MJ_ASSERT(false);
         break;
       }
     }

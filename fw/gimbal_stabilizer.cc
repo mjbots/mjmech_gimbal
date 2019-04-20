@@ -380,7 +380,7 @@ class GimbalStabilizer::Impl {
       case kFault: {
         break;
       }
-      case kNumStates: { assert(false); break; }
+      case kNumStates: { MJ_ASSERT(false); break; }
     }
   }
 
