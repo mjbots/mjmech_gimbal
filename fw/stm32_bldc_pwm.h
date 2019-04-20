@@ -1,4 +1,4 @@
-// Copyright 2015 Josh Pieper, jjp@pobox.com.  All rights reserved.
+// Copyright 2015-2019 Josh Pieper, jjp@pobox.com.  All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,9 +14,11 @@
 
 #pragma once
 
-#include "bldc_pwm.h"
+#include "fw/bldc_pwm.h"
 
-#include "tim.h"
+#include "stm32f4xx_hal.h"
+
+namespace fw {
 
 class Stm32BldcPwm : public BldcPwm {
  public:
@@ -42,3 +44,5 @@ class Stm32BldcPwm : public BldcPwm {
   volatile uint32_t* const phase_b_ccr_;
   volatile uint32_t* const phase_c_ccr_;
 };
+
+}

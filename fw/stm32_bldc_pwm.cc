@@ -1,4 +1,4 @@
-// Copyright 2015 Josh Pieper, jjp@pobox.com.  All rights reserved.
+// Copyright 2015-2019 Josh Pieper, jjp@pobox.com.  All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,23 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "stm32_bldc_pwm.h"
+#include "fw/stm32_bldc_pwm.h"
 
-#include <assert.h>
+#include "mjlib/base/assert.h"
+
+namespace fw {
 
 namespace {
 volatile uint32_t* FindCCR(TIM_HandleTypeDef* tim,
-                  uint16_t phase_a_channel) {
+                           uint16_t phase_a_channel) {
   if (phase_a_channel == TIM_CHANNEL_1) { return &tim->Instance->CCR1; }
   else if (phase_a_channel == TIM_CHANNEL_2) { return &tim->Instance->CCR2; }
   else if (phase_a_channel == TIM_CHANNEL_3) { return &tim->Instance->CCR3; }
   else if (phase_a_channel == TIM_CHANNEL_4) { return &tim->Instance->CCR4; }
-  assert(false);
+  MJ_ASSERT(false);
+  return nullptr;
 }
 
 void StartTimer(TIM_HandleTypeDef* tim,
                 uint16_t pin) {
-  assert(tim->Instance != TIM1); // TIM1 needs special handling
+  MJ_ASSERT(tim->Instance != TIM1); // TIM1 needs special handling
   HAL_TIM_PWM_Start(tim, pin);
 }
 }
@@ -50,3 +53,4 @@ Stm32BldcPwm::Stm32BldcPwm(TIM_HandleTypeDef* phase_a_tim,
 
 Stm32BldcPwm::~Stm32BldcPwm() {}
 
+}

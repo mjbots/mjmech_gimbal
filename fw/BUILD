@@ -54,6 +54,8 @@ mbed_binary(
         "static_signal.h",
         "stm32_analog_sampler.h",
         "stm32_analog_sampler.cc",
+        "stm32_bldc_pwm.h",
+        "stm32_bldc_pwm.cc",
         "stm32_serial.cc",
         "stm32_serial.h",
         "stm32f446_async_uart.cc",
