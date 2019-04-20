@@ -1,4 +1,4 @@
-// Copyright 2015 Josh Pieper, jjp@pobox.com.  All rights reserved.
+// Copyright 2015-2019 Josh Pieper, jjp@pobox.com.  All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,17 +14,21 @@
 
 #pragma once
 
-#include "base/visitor.h"
+#include "mjlib/base/visitor.h"
+#include "mjlib/micro/pool_ptr.h"
+#include "mjlib/micro/persistent_config.h"
+#include "mjlib/micro/telemetry_manager.h"
 
-#include "pool_ptr.h"
+#include "fw/millisecond_timer.h"
 
-class Clock;
-class PersistentConfig;
-class TelemetryManager;
+namespace fw {
 
 class Stm32AnalogSampler {
  public:
-  Stm32AnalogSampler(Pool&, Clock&, PersistentConfig&, TelemetryManager&);
+  Stm32AnalogSampler(mjlib::micro::Pool&,
+                     MillisecondTimer&,
+                     mjlib::micro::PersistentConfig&,
+                     mjlib::micro::TelemetryManager&);
   ~Stm32AnalogSampler();
 
   void PollMillisecond();
@@ -64,5 +68,7 @@ class Stm32AnalogSampler {
 
  private:
   class Impl;
-  PoolPtr<Impl> impl_;
+  mjlib::micro::PoolPtr<Impl> impl_;
 };
+
+}

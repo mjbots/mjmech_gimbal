@@ -1,4 +1,4 @@
-// Copyright 2015 Josh Pieper, jjp@pobox.com.  All rights reserved.
+// Copyright 2015-2019 Josh Pieper, jjp@pobox.com.  All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "stm32_analog_sampler.h"
+#include "fw/stm32_analog_sampler.h"
 
-#include "adc.h"
+#include "stm32f4xx_hal.h"
 
-#include "clock.h"
-#include "persistent_config.h"
-#include "telemetry_manager.h"
+extern ADC_HandleTypeDef hadc1;
+
+namespace fw {
 
 namespace {
 // The resistor divider for the external voltages is 10k by 100k, or a
@@ -28,11 +28,11 @@ int kExternalDivider = 11;
 
 class Stm32AnalogSampler::Impl {
  public:
-  Impl(Clock& clock,
-       PersistentConfig& persistent_config,
-       TelemetryManager& telemetry)
+  Impl(MillisecondTimer& clock,
+       mjlib::micro::PersistentConfig& persistent_config,
+       mjlib::micro::TelemetryManager& telemetry)
       : clock_(clock) {
-    data_updater_ = telemetry.Register(gsl::ensure_z("power"), &data_);
+    data_updater_ = telemetry.Register("power", &data_);
   }
 
   void PollMillisecond() {
@@ -58,7 +58,7 @@ class Stm32AnalogSampler::Impl {
 
     if (state_ == kFinal) {
       // Emit our result.
-      data_.timestamp = clock_.timestamp();
+      data_.timestamp = clock_.read_us();
       const float vadc = 1.2f / (data_.raw_vrefint / 4096.0f);
       data_.power_vbat = data_.raw_vbat / 4096.0f * 4 * vadc;
       data_.power_8v = data_.raw_8v / 4096.0f * kExternalDivider * vadc;
@@ -98,9 +98,9 @@ class Stm32AnalogSampler::Impl {
     configuring_ = true;
   }
 
-  Clock& clock_;
+  MillisecondTimer& clock_;
   Data data_;
-  StaticFunction<void ()> data_updater_;
+  mjlib::micro::StaticFunction<void ()> data_updater_;
 
   enum State {
     kIdle,
@@ -116,10 +116,11 @@ class Stm32AnalogSampler::Impl {
   bool configuring_ = false;
 };
 
-Stm32AnalogSampler::Stm32AnalogSampler(Pool& pool,
-                                       Clock& clock,
-                                       PersistentConfig& persistent_config,
-                                       TelemetryManager& telemetry)
+Stm32AnalogSampler::Stm32AnalogSampler(
+    mjlib::micro::Pool& pool,
+    MillisecondTimer& clock,
+    mjlib::micro::PersistentConfig& persistent_config,
+    mjlib::micro::TelemetryManager& telemetry)
 : impl_(&pool, clock, persistent_config, telemetry) {
 }
 
@@ -127,4 +128,6 @@ Stm32AnalogSampler::~Stm32AnalogSampler() {}
 
 void Stm32AnalogSampler::PollMillisecond() {
   impl_->PollMillisecond();
+}
+
 }
