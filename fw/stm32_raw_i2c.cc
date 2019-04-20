@@ -1,4 +1,4 @@
-// Copyright 2015 Josh Pieper, jjp@pobox.com.  All rights reserved.
+// Copyright 2015-2019 Josh Pieper, jjp@pobox.com.  All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,18 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "stm32_raw_i2c.h"
-
-#include <assert.h>
+#include "fw/stm32_raw_i2c.h"
 
 #include "stm32f4xx.h"
 #include "stm32f4xx_hal_rcc.h"
-#include "gpio.h"
 
-#include "clock.h"
-#include "gpio_pin.h"
+#include "mjlib/base/assert.h"
+
+#include "fw/error.h"
 
 // TODO jpieper: Use DMA for the bulk transfers to reduce overhead.
+
+namespace fw {
 
 namespace {
 typedef Stm32RawI2C::Parameters Parameters;
@@ -72,7 +72,7 @@ I2C_TypeDef* GetI2C(int i2c_number) {
     case 2: { return I2C2; }
     case 3: { return I2C3; }
   }
-  assert(false);
+  MJ_ASSERT(false);
   return nullptr;
 }
 
@@ -88,10 +88,10 @@ bool TestTimeout(Predicate p) {
 class Stm32RawI2C::Impl {
  public:
   Impl(int i2c_number, GpioPin& scl, GpioPin& sda,
-       const Parameters& parameters, Clock& clock)
+       const Parameters& parameters, MillisecondTimer& clock)
       : i2c_(GetI2C(i2c_number)), scl_(scl), sda_(sda),
         parameters_(parameters), clock_(clock) {
-    assert(i2c_number >= 1 && i2c_number <= 3);
+    MJ_ASSERT(i2c_number >= 1 && i2c_number <= 3);
 
     Init();
   }
@@ -191,7 +191,7 @@ class Stm32RawI2C::Impl {
     const uint16_t sr1 = i2c_->SR1;
     __attribute__((unused)) const uint16_t sr2 = i2c_->SR2;
 
-    assert(i2c_->CR1 & I2C_CR1_PE);
+    MJ_ASSERT(i2c_->CR1 & I2C_CR1_PE);
 
     // Check for errors or early exits.
     switch (state_) {
@@ -226,7 +226,7 @@ class Stm32RawI2C::Impl {
         break;
       }
       case kError: {
-        const uint32_t now = clock_.timestamp();
+        const uint32_t now = clock_.read_us();
         const uint32_t delta = now - start_time_;
         if (delta > (kErrorTimeoutMilliseconds * 10)) {
           // Add an extra flag to indicate we had to try a bus reset.
@@ -272,7 +272,7 @@ class Stm32RawI2C::Impl {
         auto callback = context_.callback;
         auto error_result = context_.error_result;
         context_ = Context();
-        callback(error_result);
+        callback({error_result, gimbal_error_category()});
         return;
       }
     }
@@ -281,7 +281,7 @@ class Stm32RawI2C::Impl {
     switch (state_) {
       case kIdle:
       case kError: {
-        assert(false);
+        MJ_ASSERT(false);
         break;
       }
       case kStop: {
@@ -294,7 +294,7 @@ class Stm32RawI2C::Impl {
           auto callback = context_.callback;
           auto error_result = context_.error_result;
           context_ = Context();
-          callback(error_result);
+          callback({error_result, gimbal_error_category()});
           return;
         }
         break;
@@ -310,7 +310,7 @@ class Stm32RawI2C::Impl {
             i2c_->CR1 |= I2C_CR1_START;
             state_ = kReadRestart;
           } else {
-            assert(false);
+            MJ_ASSERT(false);
           }
         }
         break;
@@ -358,7 +358,7 @@ class Stm32RawI2C::Impl {
     switch (state_) {
       case kIdle:
       case kError: {
-        assert(false);
+        MJ_ASSERT(false);
         break;
       }
       case kDeviceAddress:
@@ -366,7 +366,7 @@ class Stm32RawI2C::Impl {
       case kTransferRead:
       case kTransferWrite:
       case kStop: {
-        const uint32_t now = clock_.timestamp();
+        const uint32_t now = clock_.read_us();
         const uint32_t delta = now - start_time_;
         if (delta > (kTransferTimeoutMilliseconds * 10)) {
           context_.error_result = (18 << 16) | i2c_->SR1;
@@ -380,7 +380,7 @@ class Stm32RawI2C::Impl {
   }
 
   void AssertIdle() {
-    assert(state_ == kIdle);
+    MJ_ASSERT(state_ == kIdle);
   }
 
   void SelectDevice() {
@@ -393,7 +393,7 @@ class Stm32RawI2C::Impl {
       context_.error_result = (16 << 16) | sr1;
       state_ = kError;
       need_to_read_ = 0;
-      start_time_ = clock_.timestamp();
+      start_time_ = clock_.read_us();
       return;
     }
 
@@ -416,14 +416,14 @@ class Stm32RawI2C::Impl {
       context_.error_result = (17 << 16) | i2c_->SR1;
       state_ = kError;
       need_to_read_ = 0;
-      start_time_ = clock_.timestamp();
+      start_time_ = clock_.read_us();
       return;
     }
 
     // Start sending the address.
     i2c_->DR = context_.device_address & ~(0x01);
 
-    start_time_ = clock_.timestamp();
+    start_time_ = clock_.read_us();
     state_ = kDeviceAddress;
   }
 
@@ -431,7 +431,7 @@ class Stm32RawI2C::Impl {
   GpioPin& scl_;
   GpioPin& sda_;
   const Parameters parameters_;
-  Clock& clock_;
+  MillisecondTimer& clock_;
   uint32_t start_time_ = 0;
   uint8_t need_to_read_ = 0;
 
@@ -448,28 +448,28 @@ class Stm32RawI2C::Impl {
   struct Context {
     uint8_t device_address = 0;
     uint8_t memory_address = 0;
-    ErrorCallback callback;
-    gsl::string_span rx_buffer;
-    gsl::cstring_span tx_buffer;
+    mjlib::micro::ErrorCallback callback;
+    mjlib::base::string_span rx_buffer;
+    std::string_view tx_buffer;
     uint8_t position = 0;
     int error_result = 0;
   } context_;
 };
 
-Stm32RawI2C::Stm32RawI2C(Pool& pool,
+Stm32RawI2C::Stm32RawI2C(mjlib::micro::Pool& pool,
                          int i2c_number,
                          GpioPin& scl,
                          GpioPin& sda,
                          const Parameters& parameters,
-                         Clock& clock)
+                         MillisecondTimer& clock)
 : impl_(&pool, i2c_number, scl, sda, parameters, clock) {}
 
 Stm32RawI2C::~Stm32RawI2C() {}
 
 void Stm32RawI2C::AsyncRead(uint8_t device_address,
                             uint8_t memory_address,
-                            const gsl::string_span& buffer,
-                            ErrorCallback callback) {
+                            mjlib::base::string_span buffer,
+                            mjlib::micro::ErrorCallback callback) {
   impl_->AssertIdle();
   impl_->context_.device_address = device_address;
   impl_->context_.memory_address = memory_address;
@@ -482,8 +482,8 @@ void Stm32RawI2C::AsyncRead(uint8_t device_address,
 
 void Stm32RawI2C::AsyncWrite(uint8_t device_address,
                              uint8_t memory_address,
-                             const gsl::cstring_span& buffer,
-                             ErrorCallback callback) {
+                             const std::string_view& buffer,
+                             mjlib::micro::ErrorCallback callback) {
   impl_->AssertIdle();
 
   impl_->context_.device_address = device_address;
@@ -496,4 +496,6 @@ void Stm32RawI2C::AsyncWrite(uint8_t device_address,
 
 void Stm32RawI2C::Poll() {
   impl_->Poll();
+}
+
 }

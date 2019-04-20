@@ -1,4 +1,4 @@
-// Copyright 2015 Josh Pieper, jjp@pobox.com.  All rights reserved.
+// Copyright 2015-2019 Josh Pieper, jjp@pobox.com.  All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,28 +14,30 @@
 
 #pragma once
 
-#include "async_i2c.h"
-#include "pool_ptr.h"
+#include "mjlib/micro/pool_ptr.h"
 
-class Clock;
-class GpioPin;
+#include "fw/async_i2c.h"
+#include "fw/gpio_pin.h"
+#include "fw/millisecond_timer.h"
+
+namespace fw {
 
 class Stm32RawI2C : public AsyncI2C {
  public:
   struct Parameters;
 
-  Stm32RawI2C(Pool&, int i2c_number, GpioPin& scl, GpioPin& sda,
-              const Parameters&, Clock&);
+  Stm32RawI2C(mjlib::micro::Pool&, int i2c_number, GpioPin& scl, GpioPin& sda,
+              const Parameters&, MillisecondTimer&);
   virtual ~Stm32RawI2C();
 
   void AsyncRead(uint8_t device_address,
                  uint8_t memory_address,
-                 const gsl::string_span&,
-                 ErrorCallback) override;
+                 mjlib::base::string_span,
+                 mjlib::micro::ErrorCallback) override;
   void AsyncWrite(uint8_t device_address,
                   uint8_t memory_address,
-                  const gsl::cstring_span&,
-                  ErrorCallback) override;
+                  const std::string_view&,
+                  mjlib::micro::ErrorCallback) override;
 
   void Poll();
 
@@ -50,5 +52,7 @@ class Stm32RawI2C : public AsyncI2C {
 
  private:
   class Impl;
-  PoolPtr<Impl> impl_;
+  mjlib::micro::PoolPtr<Impl> impl_;
 };
+
+}
