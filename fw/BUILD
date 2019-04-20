@@ -38,6 +38,8 @@ mbed_binary(
         "fire_control.h",
         "fire_control.cc",
         "gimbal.cc",
+        "gimbal_stabilizer.h",
+        "gimbal_stabilizer.cc",
         "gpio_pin.h",
         "imu_data.h",
         "irq_callback_table.h",
@@ -59,6 +61,7 @@ mbed_binary(
     deps = [
         "@eigen",
         "@moteus//mjlib/base:assert",
+        "@moteus//mjlib/base:pid",
         "@moteus//mjlib/base:tokenizer",
         "@moteus//mjlib/base:visitor",
         "@moteus//mjlib/micro:async_stream",

@@ -1,4 +1,4 @@
-// Copyright 2015-2016 Josh Pieper, jjp@pobox.com.  All rights reserved.
+// Copyright 2015-2019 Josh Pieper, jjp@pobox.com.  All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "gimbal_stabilizer.h"
+#include "fw/gimbal_stabilizer.h"
 
-#include "bldc_pwm.h"
-#include "clock.h"
-#include "gpio_pin.h"
-#include "math_util.h"
-#include "persistent_config.h"
-#include "telemetry_manager.h"
+#include "mjlib/base/tokenizer.h"
+
+#include "fw/math_util.h"
+
+namespace fw {
 
 namespace {
 template <typename T>
@@ -41,7 +40,7 @@ T Limit(T value, T min, T max) {
 struct ChannelConfig {
   int8_t motor = -1;
   float power = 0.1f;
-  PID::Config pid;
+  mjlib::base::PID::Config pid;
   float max_slew_dps = 60.0f;
 
   /// If 0 control is necessary, scale power by this much.  If maximal
@@ -84,7 +83,7 @@ struct LimitConfig {
 
   void Limit(float* value) const {
     if (empty()) { return; }
-    *value = ::Limit(*value, min_deg, max_deg);
+    *value = fw::Limit(*value, min_deg, max_deg);
   }
 
   template <typename Archive>
@@ -127,9 +126,9 @@ struct Config {
 
 class GimbalStabilizer::Impl {
  public:
-  Impl(Clock& clock,
-       PersistentConfig& config,
-       TelemetryManager& telemetry,
+  Impl(MillisecondTimer& clock,
+       mjlib::micro::PersistentConfig& config,
+       mjlib::micro::TelemetryManager& telemetry,
        AhrsDataSignal& ahrs_signal,
        GpioPin& boost_enable,
        GpioPin& motor_enable,
@@ -144,8 +143,8 @@ class GimbalStabilizer::Impl {
         motor1_(motor1),
         motor2_(motor2),
         torque_led_(torque_led) {
-    config.Register(gsl::ensure_z("gimbal"), &config_, [](){});
-    data_updater_ = telemetry.Register(gsl::ensure_z("gimbal"), &data_);
+    config.Register("gimbal", &config_, [](){});
+    data_updater_ = telemetry.Register("gimbal", &data_);
     ahrs_signal.Connect(
         [this](const AhrsData* data) { this->HandleAhrs(data); });
     yaw_encoder_signal.Connect(
@@ -168,7 +167,7 @@ class GimbalStabilizer::Impl {
       case kInitializing: { DoInitializing(); break; }
       case kOperating: { DoOperating(); break; }
       case kFault: { DoFault(); break; }
-      case kNumStates: { assert(false); break; }
+      case kNumStates: { MJ_ASSERT(false); break; }
     }
 
     data_updater_();
@@ -192,14 +191,14 @@ class GimbalStabilizer::Impl {
     }
 
     if (data_.start_timestamp == 0) {
-      data_.start_timestamp = clock_.timestamp();
+      data_.start_timestamp = clock_.read_us();
       return;
     }
 
-    const uint32_t now = clock_.timestamp();
+    const uint32_t now = clock_.read_us();
     const float elapsed_s =
         static_cast<float>(now - data_.start_timestamp) /
-        clock_.ticks_per_second();
+        1000000.0f;
     if (elapsed_s > config_.initialization_period_s) {
       data_.desired_deg.pitch = 0.0f;
       data_.desired_deg.yaw = data_.unwrapped_yaw_deg;
@@ -327,7 +326,7 @@ class GimbalStabilizer::Impl {
       const float power = Limit(power_in, 0.0f, 1.0f);
       const float fresult = (
           (std::sin((command + phase) *
-                    2 * mjmech::base::kPi) + 1.0f) *
+                    2.0f * static_cast<float>(M_PI)) + 1.0f) *
           power * 32767);
       return static_cast<uint16_t>(
           std::max(static_cast<uint32_t>(0),
@@ -369,8 +368,8 @@ class GimbalStabilizer::Impl {
     switch (data_.state) {
       case kOperating: {
         const float elapsed_s = static_cast<float>(
-            clock_.timestamp() -
-            data_.last_ahrs_update) / clock_.ticks_per_second();
+            clock_.read_us() -
+            data_.last_ahrs_update) / 1000000.0f;
         if (elapsed_s > config_.watchdog_period_s && data_.torque_on) {
           data_.last_fault_reason = 0x2000;
           DoFault();
@@ -420,7 +419,8 @@ class GimbalStabilizer::Impl {
     data_.desired_body_rate_dps.z = 0.0;
   }
 
-  void RestartInitializationCommand(const CommandManager::Response& response) {
+  void RestartInitializationCommand(
+      const mjlib::micro::CommandManager::Response& response) {
     RestartInitialization();
 
     WriteOK(response);
@@ -435,9 +435,9 @@ class GimbalStabilizer::Impl {
     data_.start_timestamp = 0;
   }
 
-  void AttitudeCommand(const gsl::cstring_span& command,
-                       const CommandManager::Response& response) {
-    Tokenizer tokenizer(command, " ");
+  void AttitudeCommand(const std::string_view& command,
+                       const mjlib::micro::CommandManager::Response& response) {
+    mjlib::base::Tokenizer tokenizer(command, " ");
     auto pitch_str = tokenizer.next();
     if (pitch_str.size() == 0) {
       BadFormat(response);
@@ -461,9 +461,9 @@ class GimbalStabilizer::Impl {
     WriteOK(response);
   }
 
-  void RateCommand(const gsl::cstring_span& command,
-                   const CommandManager::Response& response) {
-    Tokenizer tokenizer(command, " ");
+  void RateCommand(const std::string_view& command,
+                   const mjlib::micro::CommandManager::Response& response) {
+    mjlib::base::Tokenizer tokenizer(command, " ");
     auto pitch_rate_str = tokenizer.next();
     if (pitch_rate_str.size() == 0) {
       BadFormat(response);
@@ -484,9 +484,9 @@ class GimbalStabilizer::Impl {
     WriteOK(response);
   }
 
-  void AbsoluteYawCommand(const gsl::cstring_span& command,
-                          const CommandManager::Response& response) {
-    Tokenizer tokenizer(command, " ");
+  void AbsoluteYawCommand(const std::string_view& command,
+                          const mjlib::micro::CommandManager::Response& response) {
+    mjlib::base::Tokenizer tokenizer(command, " ");
     auto yaw_str = tokenizer.next();
     if (yaw_str.size() == 0) {
       BadFormat(response);
@@ -500,30 +500,30 @@ class GimbalStabilizer::Impl {
     WriteOK(response);
   }
 
-  void WriteOK(const CommandManager::Response response) {
-    WriteMessage(gsl::ensure_z("OK\r\n"), response);
+  void WriteOK(const mjlib::micro::CommandManager::Response response) {
+    WriteMessage("OK\r\n", response);
   }
 
-  void BadFormat(const CommandManager::Response& response) {
-    WriteMessage(gsl::ensure_z("bad format\r\n"), response);
+  void BadFormat(const mjlib::micro::CommandManager::Response& response) {
+    WriteMessage("bad format\r\n", response);
   }
 
-  void UnknownCommand(const CommandManager::Response& response) {
-    WriteMessage(gsl::ensure_z("unknown command\r\n"), response);
+  void UnknownCommand(const mjlib::micro::CommandManager::Response& response) {
+    WriteMessage("unknown command\r\n", response);
   }
 
-  void WriteMessage(const gsl::cstring_span& message,
-                    const CommandManager::Response& response) {
-    AsyncWrite(*response.stream, message, response.callback);
+  void WriteMessage(const std::string_view& message,
+                    const mjlib::micro::CommandManager::Response& response) {
+    mjlib::micro::AsyncWrite(*response.stream, message, response.callback);
   }
 
   bool CheckYawEncoderRecent() const {
-    const auto delta = clock_.timestamp() - yaw_encoder_.timestamp;
-    const auto max_age = clock_.ticks_per_second() / 100;
+    const auto delta = clock_.read_us() - yaw_encoder_.timestamp;
+    const auto max_age = 1000000 / 100;
     return delta < max_age;
   }
 
-  Clock& clock_;
+  MillisecondTimer& clock_;
   GpioPin& boost_enable_;
   GpioPin& motor_enable_;
   BldcPwm& motor1_;
@@ -533,19 +533,19 @@ class GimbalStabilizer::Impl {
   Config config_;
 
   Data data_;
-  StaticFunction<void ()> data_updater_;
-  PID pitch_pid_{&config_.pitch.pid, &data_.pitch};
-  PID yaw_pid_{&config_.yaw.pid, &data_.yaw};
+  mjlib::micro::StaticFunction<void ()> data_updater_;
+  mjlib::base::PID pitch_pid_{&config_.pitch.pid, &data_.pitch};
+  mjlib::base::PID yaw_pid_{&config_.yaw.pid, &data_.yaw};
   AhrsData ahrs_data_;
   BldcEncoderData yaw_encoder_;
   BldcEncoderData pitch_encoder_;
 };
 
 GimbalStabilizer::GimbalStabilizer(
-    Pool& pool,
-    Clock& clock,
-    PersistentConfig& config,
-    TelemetryManager& telemetry,
+    mjlib::micro::Pool& pool,
+    MillisecondTimer& clock,
+    mjlib::micro::PersistentConfig& config,
+    mjlib::micro::TelemetryManager& telemetry,
     AhrsDataSignal& ahrs_signal,
     GpioPin& boost_enable,
     GpioPin& motor_enable,
@@ -569,8 +569,8 @@ void GimbalStabilizer::PollMillisecond() {
 void GimbalStabilizer::Reset() {
   impl_->data_.state = kInitializing;
   impl_->data_.start_timestamp = 0;
-  impl_->data_.pitch = PID::State();
-  impl_->data_.yaw = PID::State();
+  impl_->data_.pitch = {};
+  impl_->data_.yaw = {};
   impl_->data_.torque_on = false;
 }
 
@@ -589,7 +589,7 @@ void GimbalStabilizer::SetTorque(bool v) {
 
   if (!v && impl_->data_.state == kFault) {
     impl_->data_.state = kInitializing;
-    impl_->data_.start_timestamp = impl_->clock_.timestamp();
+    impl_->data_.start_timestamp = impl_->clock_.read_us();
   }
 }
 
@@ -613,25 +613,28 @@ void GimbalStabilizer::RestartInitialization() {
   impl_->RestartInitialization();
 }
 
-void GimbalStabilizer::Command(const gsl::cstring_span& command,
-                               const CommandManager::Response& response) {
-  Tokenizer tokenizer(command, " ");
+void GimbalStabilizer::Command(
+    const std::string_view& command,
+    const mjlib::micro::CommandManager::Response& response) {
+  mjlib::base::Tokenizer tokenizer(command, " ");
   auto cmd = tokenizer.next();
-  if (cmd == gsl::ensure_z("on")) {
+  if (cmd == "on") {
     SetTorque(true);
     impl_->WriteOK(response);
-  } else if (cmd == gsl::ensure_z("off")) {
+  } else if (cmd == "off") {
     SetTorque(false);
     impl_->WriteOK(response);
-  } else if (cmd == gsl::ensure_z("att")) {
+  } else if (cmd == "att") {
     impl_->AttitudeCommand(tokenizer.remaining(), response);
-  } else if (cmd == gsl::ensure_z("rate")) {
+  } else if (cmd == "rate") {
     impl_->RateCommand(tokenizer.remaining(), response);
-  } else if (cmd == gsl::ensure_z("ayaw")) {
+  } else if (cmd == "ayaw") {
     impl_->AbsoluteYawCommand(tokenizer.remaining(), response);
-  } else if (cmd == gsl::ensure_z("restart")) {
+  } else if (cmd == "restart") {
     impl_->RestartInitializationCommand(response);
   } else {
     impl_->UnknownCommand(response);
   }
+}
+
 }

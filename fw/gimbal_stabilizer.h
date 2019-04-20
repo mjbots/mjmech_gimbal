@@ -1,4 +1,4 @@
-// Copyright 2015-2016 Josh Pieper, jjp@pobox.com.  All rights reserved.
+// Copyright 2015-2019 Josh Pieper, jjp@pobox.com.  All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,23 +14,28 @@
 
 #pragma once
 
-#include "ahrs_data.h"
-#include "async_types.h"
-#include "bldc_encoder_data.h"
-#include "command_manager.h"
-#include "pid.h"
-#include "pool_ptr.h"
+#include "mjlib/base/pid.h"
+#include "mjlib/micro/async_types.h"
+#include "mjlib/micro/command_manager.h"
+#include "mjlib/micro/persistent_config.h"
+#include "mjlib/micro/pool_ptr.h"
+#include "mjlib/micro/telemetry_manager.h"
 
-class BldcPwm;
-class Clock;
-class GpioPin;
-class PersistentConfig;
-class TelemetryManager;
+#include "fw/ahrs_data.h"
+#include "fw/bldc_encoder_data.h"
+#include "fw/bldc_pwm.h"
+#include "fw/millisecond_timer.h"
+#include "fw/gpio_pin.h"
+
+namespace fw {
 
 class GimbalStabilizer {
  public:
-  GimbalStabilizer(Pool&, Clock&, PersistentConfig&,
-                   TelemetryManager&, AhrsDataSignal&,
+  GimbalStabilizer(mjlib::micro::Pool&,
+                   MillisecondTimer&,
+                   mjlib::micro::PersistentConfig&,
+                   mjlib::micro::TelemetryManager&,
+                   AhrsDataSignal&,
                    GpioPin& boost_enable,
                    GpioPin& motor_enable,
                    BldcPwm& motor1, BldcPwm& motor2,
@@ -61,7 +66,8 @@ class GimbalStabilizer {
   /// Re-enter the initialization phase.
   void RestartInitialization();
 
-  void Command(const gsl::cstring_span&, const CommandManager::Response&);
+  void Command(const std::string_view&,
+               const mjlib::micro::CommandManager::Response&);
 
   void PollMillisecond();
 
@@ -82,8 +88,8 @@ class GimbalStabilizer {
 
   struct Data {
     State state;
-    PID::State pitch;
-    PID::State yaw;
+    mjlib::base::PID::State pitch;
+    mjlib::base::PID::State yaw;
 
     uint32_t start_timestamp = 0;
 
@@ -127,5 +133,7 @@ class GimbalStabilizer {
 
  private:
   class Impl;
-  PoolPtr<Impl> impl_;
+  mjlib::micro::PoolPtr<Impl> impl_;
 };
+
+}
