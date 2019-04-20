@@ -1,4 +1,4 @@
-// Copyright 2015 Josh Pieper, jjp@pobox.com.  All rights reserved.
+// Copyright 2015-2019 Josh Pieper, jjp@pobox.com.  All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,11 +14,11 @@
 
 #pragma once
 
-#include "i2c.h"
+#include "stm32f4xx_hal.h"
 
-#include "base/gsl/gsl-lite.h"
+#include "fw/async_i2c.h"
 
-#include "async_i2c.h"
+namespace fw {
 
 class Stm32HalI2C : public AsyncI2C {
  public:
@@ -27,12 +27,12 @@ class Stm32HalI2C : public AsyncI2C {
 
   void AsyncRead(uint8_t device_address,
                  uint8_t memory_address,
-                 const gsl::string_span& buffer,
-                 ErrorCallback) override;
+                 mjlib::base::string_span buffer,
+                 mjlib::micro::ErrorCallback) override;
   void AsyncWrite(uint8_t device_address,
                   uint8_t memory_address,
-                  const gsl::cstring_span& buffer,
-                  ErrorCallback) override;
+                  const std::string_view& buffer,
+                  mjlib::micro::ErrorCallback) override;
   void Poll();
 
   void ReceiveComplete();
@@ -43,6 +43,8 @@ class Stm32HalI2C : public AsyncI2C {
   I2C_HandleTypeDef* const hi2c_;
   bool tx_complete_ = false;
   bool rx_complete_ = false;
-  ErrorCallback read_callback_;
-  ErrorCallback write_callback_;
+  mjlib::micro::ErrorCallback read_callback_;
+  mjlib::micro::ErrorCallback write_callback_;
 };
+
+}

@@ -56,6 +56,8 @@ mbed_binary(
         "stm32_analog_sampler.cc",
         "stm32_bldc_pwm.h",
         "stm32_bldc_pwm.cc",
+        "stm32_hal_i2c.h",
+        "stm32_hal_i2c.cc",
         "stm32_serial.cc",
         "stm32_serial.h",
         "stm32f446_async_uart.cc",

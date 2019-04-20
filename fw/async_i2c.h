@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include "mjlib/base/string_span.h"
 #include "mjlib/micro/async_types.h"
 #include "mjlib/micro/static_function.h"
 
