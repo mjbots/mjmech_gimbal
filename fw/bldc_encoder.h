@@ -1,4 +1,4 @@
-// Copyright 2016 Josh Pieper, jjp@pobox.com.  All rights reserved.
+// Copyright 2016-2019 Josh Pieper, jjp@pobox.com.  All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,24 +14,26 @@
 
 #pragma once
 
-#include "base/gsl/gsl-lite.h"
-#include "base/visitor.h"
+#include "mjlib/base/visitor.h"
+#include "mjlib/micro/persistent_config.h"
+#include "mjlib/micro/pool_ptr.h"
+#include "mjlib/micro/telemetry_manager.h"
 
-#include "bldc_encoder_data.h"
-#include "pool_ptr.h"
+#include "fw/as5048_driver.h"
+#include "fw/bldc_encoder_data.h"
+#include "fw/millisecond_timer.h"
 
-class As5048Driver;
-class Clock;
-class PersistentConfig;
-class TelemetryManager;
+namespace fw {
 
 /// Interprets a rotary encoder in a way necessary for use as the
 /// primary encoder on a BLDC motor.
 class BldcEncoder {
  public:
-  BldcEncoder(Pool&, const gsl::cstring_span& name,
+  BldcEncoder(mjlib::micro::Pool&, const std::string_view& name,
               As5048Driver&,
-              Clock&, PersistentConfig&, TelemetryManager&);
+              MillisecondTimer&,
+              mjlib::micro::PersistentConfig&,
+              mjlib::micro::TelemetryManager&);
   ~BldcEncoder();
 
   struct Config {
@@ -61,5 +63,7 @@ class BldcEncoder {
 
  private:
   class Impl;
-  PoolPtr<Impl> impl_;
+  mjlib::micro::PoolPtr<Impl> impl_;
 };
+
+}

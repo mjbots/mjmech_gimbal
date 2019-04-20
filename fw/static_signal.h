@@ -16,7 +16,7 @@
 
 #include <assert.h>
 
-#include "mjlib/base/static_function.h"
+#include "mjlib/micro/static_function.h"
 
 namespace fw {
 
@@ -27,7 +27,7 @@ template <typename R, typename... Args, std::size_t Size>
 struct StaticSignal<R(Args...), Size> {
   StaticSignal() {}
 
-  void Connect(const StaticFunction<R(Args...)>& function) {
+  void Connect(const mjlib::micro::StaticFunction<R(Args...)>& function) {
     for (auto& item: elements_) {
       if (!item.valid()) {
         item = function;
@@ -44,7 +44,7 @@ struct StaticSignal<R(Args...), Size> {
   }
 
  private:
-  std::array<StaticFunction<R(Args...)>, Size> elements_;
+  std::array<mjlib::micro::StaticFunction<R(Args...)>, Size> elements_;
 };
 
 }

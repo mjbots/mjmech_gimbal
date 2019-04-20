@@ -1,4 +1,4 @@
-// Copyright 2016 Josh Pieper, jjp@pobox.com.  All rights reserved.
+// Copyright 2016-2019 Josh Pieper, jjp@pobox.com.  All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,9 +14,11 @@
 
 #pragma once
 
-#include "base/visitor.h"
+#include "mjlib/base/visitor.h"
 
-#include "static_signal.h"
+#include "fw/static_signal.h"
+
+namespace fw {
 
 struct BldcEncoderData {
   uint32_t timestamp = 0;
@@ -39,3 +41,5 @@ struct BldcEncoderData {
 };
 
 typedef StaticSignal<void (const BldcEncoderData*)> BldcEncoderDataSignal;
+
+}

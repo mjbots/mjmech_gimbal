@@ -1,4 +1,4 @@
-// Copyright 2016 Josh Pieper, jjp@pobox.com.  All rights reserved.
+// Copyright 2016-2019 Josh Pieper, jjp@pobox.com.  All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,21 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "bldc_encoder.h"
+#include "fw/bldc_encoder.h"
 
-#include "as5048_driver.h"
-#include "clock.h"
-#include "math_util.h"
-#include "persistent_config.h"
-#include "telemetry_manager.h"
+#include "fw/math_util.h"
+
+namespace fw {
 
 class BldcEncoder::Impl {
  public:
-  Impl(const gsl::cstring_span& name,
+  Impl(const std::string_view& name,
        As5048Driver& as5048,
-       Clock& clock,
-       PersistentConfig& config,
-       TelemetryManager& telemetry)
+       MillisecondTimer& clock,
+       mjlib::micro::PersistentConfig& config,
+       mjlib::micro::TelemetryManager& telemetry)
       : as5048_(as5048),
         clock_(clock) {
     config.Register(name, &config_, [](){});
@@ -36,28 +34,28 @@ class BldcEncoder::Impl {
   void PollMillisecond() {
     if (read_outstanding_) { return; }
     read_outstanding_ = true;
-    as5048_.AsyncRead(&raw_data_, [this](ErrorCode ec) {
+    as5048_.AsyncRead(&raw_data_, [this](auto ec) {
         this->HandleRawRead(ec);
       });
   }
 
-  void HandleRawRead(ErrorCode ec) {
+  void HandleRawRead(mjlib::micro::error_code ec) {
     read_outstanding_ = false;
 
-    data_.timestamp = clock_.timestamp();
+    data_.timestamp = clock_.read_us();
 
     if (ec) {
       data_.raw_errors++;
-      data_.raw_last_error = ec;
+      data_.raw_last_error = ec.value();
       if (data_.raw_first_error == 0) {
-        data_.raw_first_error = ec;
+        data_.raw_first_error = ec.value();
       }
 
       data_updater_();
       return;
     }
 
-    data_.timestamp = clock_.timestamp();
+    data_.timestamp = clock_.read_us();
     const float unwrapped_deg =
         config_.sign * 360.0f * raw_data_.angle / 16384.0f +
         config_.offset_deg;
@@ -75,23 +73,23 @@ class BldcEncoder::Impl {
   }
 
   As5048Driver& as5048_;
-  Clock& clock_;
+  MillisecondTimer& clock_;
   Config config_;
 
   BldcEncoderDataSignal data_signal_;
   BldcEncoderData data_;
-  StaticFunction<void ()> data_updater_;
+  mjlib::micro::StaticFunction<void ()> data_updater_;
   bool read_outstanding_ = false;
   As5048Driver::Data raw_data_;
 };
 
 BldcEncoder::BldcEncoder(
-    Pool& pool,
-    const gsl::cstring_span& name,
+    mjlib::micro::Pool& pool,
+    const std::string_view& name,
     As5048Driver& as5048,
-    Clock& clock,
-    PersistentConfig& config,
-    TelemetryManager& telemetry)
+    MillisecondTimer& clock,
+    mjlib::micro::PersistentConfig& config,
+    mjlib::micro::TelemetryManager& telemetry)
     : impl_(&pool, name, as5048, clock, config, telemetry) {}
 
 BldcEncoder::~BldcEncoder() {}
@@ -108,3 +106,4 @@ const BldcEncoderData* BldcEncoder::data() const {
   return &impl_->data_;
 }
 
+}
