@@ -1,4 +1,4 @@
-// Copyright 2015 Josh Pieper, jjp@pobox.com.  All rights reserved.
+// Copyright 2015-2019 Josh Pieper, jjp@pobox.com.  All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,7 +14,9 @@
 
 #pragma once
 
-#include "base/gsl/gsl-lite.h"
+#include "mjlib/base/assert.h"
+
+namespace fw {
 
 /// A dumb circular buffer which works with move-only objects.
 template <typename T, std::size_t Size>
@@ -23,13 +25,13 @@ class circular_buffer {
   circular_buffer() {}
 
   void push_back(T&& value) {
-    Expects(!full());
+    MJ_ASSERT(!full());
     data_[insert_] = std::move(value);
     insert_ = (insert_ + 1) % Size;
   }
 
   void pop_front() {
-    Expects(!empty());
+    MJ_ASSERT(!empty());
     remove_ = (remove_ + 1) % Size;
   }
 
@@ -54,3 +56,5 @@ class circular_buffer {
   volatile size_t insert_ = 0;
   volatile size_t remove_ = 0;
 };
+
+}

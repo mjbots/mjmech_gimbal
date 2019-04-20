@@ -1,4 +1,4 @@
-// Copyright 2015 Josh Pieper, jjp@pobox.com.  All rights reserved.
+// Copyright 2015-2019 Josh Pieper, jjp@pobox.com.  All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,6 +13,8 @@
 // limitations under the License.
 
 #pragma once
+
+namespace fw {
 
 class GpioPin {
  public:
@@ -29,3 +31,5 @@ class GpioPin {
   };
   virtual void SetMode(PinMode) = 0;
 };
+
+}

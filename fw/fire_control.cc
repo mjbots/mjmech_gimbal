@@ -1,4 +1,4 @@
-// Copyright 2015 Josh Pieper, jjp@pobox.com.  All rights reserved.
+// Copyright 2015-2019 Josh Pieper, jjp@pobox.com.  All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,19 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "fire_control.h"
+#include "fw/fire_control.h"
 
-#include "clock.h"
-#include "gpio_pin.h"
-#include "pwm_pin.h"
-#include "telemetry_manager.h"
-#include "base/visitor.h"
+#include "mjlib/base/tokenizer.h"
+#include "mjlib/base/visitor.h"
+
+namespace fw {
 
 class FireControl::Impl {
  public:
-  Impl(Clock& clock,
-       PersistentConfig&,
-       TelemetryManager& telemetry,
+  Impl(MillisecondTimer& clock,
+       mjlib::micro::PersistentConfig&,
+       mjlib::micro::TelemetryManager& telemetry,
        GpioPin& laser_enable,
        GpioPin& pwm_enable,
        PwmPin& aeg_pwm,
@@ -38,11 +37,11 @@ class FireControl::Impl {
         agitator_pwm_(agitator_pwm),
         arm_switch_(arm_switch),
         arm_led_(arm_led) {
-    data_updated_ = telemetry.Register(gsl::ensure_z("fire_control"), &data_);
+    data_updated_ = telemetry.Register("fire_control", &data_);
   }
 
   void Emit() {
-    data_.timestamp = clock_.timestamp();
+    data_.timestamp = clock_.read_us();
     data_updated_();
   }
 
@@ -90,17 +89,17 @@ class FireControl::Impl {
     Emit();
   }
 
-  void UnknownCommand(const gsl::cstring_span& command,
-                      const CommandManager::Response& response) {
-    WriteMessage(gsl::ensure_z("unknown command\r\n"), response);
+  void UnknownCommand(const std::string_view& command,
+                      const mjlib::micro::CommandManager::Response& response) {
+    WriteMessage("unknown command\r\n", response);
   }
 
-  void WriteOK(const CommandManager::Response& response) {
-    WriteMessage(gsl::ensure_z("OK\r\n"), response);
+  void WriteOK(const mjlib::micro::CommandManager::Response& response) {
+    WriteMessage("OK\r\n", response);
   }
 
-  void WriteMessage(const gsl::cstring_span& message,
-                    const CommandManager::Response& response) {
+  void WriteMessage(const std::string_view& message,
+                    const mjlib::micro::CommandManager::Response& response) {
     AsyncWrite(*response.stream, message, response.callback);
   }
 
@@ -131,7 +130,7 @@ class FireControl::Impl {
     }
   };
 
-  Clock& clock_;
+  MillisecondTimer& clock_;
   GpioPin& laser_enable_;
   GpioPin& pwm_enable_;
   PwmPin& aeg_pwm_;
@@ -140,12 +139,14 @@ class FireControl::Impl {
   GpioPin& arm_led_;
 
   Data data_;
-  StaticFunction<void ()> data_updated_;
+  mjlib::micro::StaticFunction<void ()> data_updated_;
 };
 
 FireControl::FireControl(
-    Pool& pool, Clock& clock, PersistentConfig& config,
-    TelemetryManager& telemetry,
+    mjlib::micro::Pool& pool,
+    MillisecondTimer& clock,
+    mjlib::micro::PersistentConfig& config,
+    mjlib::micro::TelemetryManager& telemetry,
     GpioPin& laser_enable, GpioPin& pwm_enable,
     PwmPin& aeg_pwm, PwmPin& agitator_pwm,
     GpioPin& arm_switch, GpioPin& arm_led)
@@ -189,21 +190,21 @@ uint8_t FireControl::agitator_pwm() const {
   return impl_->data_.agitator_pwm;
 }
 
-void FireControl::Command(const gsl::cstring_span& command,
-                          const CommandManager::Response& response) {
-  Tokenizer tokenizer(command, " ");
+void FireControl::Command(const std::string_view& command,
+                          const mjlib::micro::CommandManager::Response& response) {
+  mjlib::base::Tokenizer tokenizer(command, " ");
   const auto cmd = tokenizer.next();
-  if (cmd == gsl::ensure_z("fire")) {
+  if (cmd == "fire") {
     const auto pwm_str = tokenizer.next();
     const auto time_100ms_str = tokenizer.next();
     SetFire(std::strtol(pwm_str.data(), nullptr, 0),
             std::strtol(time_100ms_str.data(), nullptr, 0));
     impl_->WriteOK(response);
-  } else if (cmd == gsl::ensure_z("laser")) {
+  } else if (cmd == "laser") {
     const auto laser_val = tokenizer.next();
-    SetLaser(laser_val == gsl::ensure_z("1"));
+    SetLaser(laser_val == "1");
     impl_->WriteOK(response);
-  } else if (cmd == gsl::ensure_z("agitator")) {
+  } else if (cmd == "agitator") {
     const auto agitator_str = tokenizer.next();
     SetAgitator(std::strtol(agitator_str.data(), nullptr, 0));
     impl_->WriteOK(response);
@@ -219,4 +220,6 @@ void FireControl::PollMillisecond() {
   } else {
     impl_->data_.count_100ms--;
   }
+}
+
 }

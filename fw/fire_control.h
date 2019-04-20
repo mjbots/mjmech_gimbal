@@ -1,4 +1,4 @@
-// Copyright 2015 Josh Pieper, jjp@pobox.com.  All rights reserved.
+// Copyright 2015-2019 Josh Pieper, jjp@pobox.com.  All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,18 +14,22 @@
 
 #pragma once
 
-#include "command_manager.h"
-#include "pool_ptr.h"
+#include "mjlib/micro/command_manager.h"
+#include "mjlib/micro/persistent_config.h"
+#include "mjlib/micro/pool_ptr.h"
+#include "mjlib/micro/telemetry_manager.h"
 
-class Clock;
-class GpioPin;
-class PersistentConfig;
-class PwmPin;
-class TelemetryManager;
+#include "fw/millisecond_timer.h"
+#include "fw/gpio_pin.h"
+#include "fw/pwm_pin.h"
+
+namespace fw {
 
 class FireControl {
  public:
-  FireControl(Pool&, Clock&, PersistentConfig&, TelemetryManager&,
+  FireControl(mjlib::micro::Pool&, MillisecondTimer&,
+              mjlib::micro::PersistentConfig&,
+              mjlib::micro::TelemetryManager&,
               GpioPin& laser_enable,
               GpioPin& pwm_enable,
               PwmPin& aeg_pwm,
@@ -43,11 +47,14 @@ class FireControl {
   uint8_t fire_time_100ms() const;
   uint8_t agitator_pwm() const;
 
-  void Command(const gsl::cstring_span&, const CommandManager::Response&);
+  void Command(const std::string_view&,
+               const mjlib::micro::CommandManager::Response&);
 
   void PollMillisecond();
 
  private:
   class Impl;
-  PoolPtr<Impl> impl_;
+  mjlib::micro::PoolPtr<Impl> impl_;
 };
+
+}
