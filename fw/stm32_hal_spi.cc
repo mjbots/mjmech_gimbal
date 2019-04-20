@@ -1,4 +1,4 @@
-// Copyright 2015 Josh Pieper, jjp@pobox.com.  All rights reserved.
+// Copyright 2015-2019 Josh Pieper, jjp@pobox.com.  All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,25 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "stm32_hal_spi.h"
+#include "fw/stm32_hal_spi.h"
 
-#include <assert.h>
+#include "mjlib/base/assert.h"
 
-#include "spi.h"
+#include "fw/error.h"
+
+extern SPI_HandleTypeDef hspi3;
 
 namespace {
 SPI_HandleTypeDef* SelectSPI(int n) {
   if (n == 3) { return &hspi3; }
-  assert(false);
+  MJ_ASSERT(false);
+  return nullptr;
 }
 
 struct Registry {
   SPI_HandleTypeDef* spi = nullptr;
-  Stm32HalSPI::Impl* impl = nullptr;
+  fw::Stm32HalSPI::Impl* impl = nullptr;
 };
 
 std::array<Registry, 4> g_registry;
 }
+
+namespace fw {
 
 class Stm32HalSPI::Impl {
  public:
@@ -45,7 +50,7 @@ class Stm32HalSPI::Impl {
         return;
       }
     }
-    assert(false);
+    MJ_ASSERT(false);
   }
 
   ~Impl() {
@@ -56,7 +61,7 @@ class Stm32HalSPI::Impl {
         return;
       }
     }
-    assert(false);
+    MJ_ASSERT(false);
   }
 
   void Poll() {
@@ -69,16 +74,16 @@ class Stm32HalSPI::Impl {
       switch (complete_flag_) {
         case kCompleted: { return 0; }
         case kError: { return 1; }
-        case kIdle: { assert(false); }
+        case kIdle: { MJ_ASSERT(false); }
       }
-      assert(false);
+      MJ_ASSERT(false);
       return 0;
     }();
 
     const auto callback = callback_;
-    callback_ = ErrorCallback();
+    callback_ = {};
     complete_flag_ = kIdle;
-    callback(code);
+    callback({code, gimbal_error_category()});
   }
 
   void Complete() { complete_flag_ = kCompleted; }
@@ -88,7 +93,7 @@ class Stm32HalSPI::Impl {
   GPIO_TypeDef* const cs_gpio_;
   const uint16_t cs_pin_;
 
-  ErrorCallback callback_;
+  mjlib::micro::ErrorCallback callback_;
 
   enum CompleteFlag {
     kIdle,
@@ -100,18 +105,18 @@ class Stm32HalSPI::Impl {
   volatile int error_code_ = 0;
 };
 
-Stm32HalSPI::Stm32HalSPI(Pool& pool, int spi_number,
+Stm32HalSPI::Stm32HalSPI(mjlib::micro::Pool& pool, int spi_number,
                          GPIO_TypeDef* cs_gpio, uint16_t cs_pin)
 : impl_(&pool, spi_number, cs_gpio, cs_pin) {}
 
 Stm32HalSPI::~Stm32HalSPI() {}
 
-void Stm32HalSPI::AsyncTransaction(const gsl::cstring_span& tx_buffer,
-                                   const gsl::string_span& rx_buffer,
-                                   ErrorCallback callback) {
-  assert(!impl_->callback_.valid());
-  assert(tx_buffer.size() == rx_buffer.size());
-  assert(impl_->complete_flag_ == Impl::kIdle);
+void Stm32HalSPI::AsyncTransaction(const std::string_view& tx_buffer,
+                                   const mjlib::base::string_span& rx_buffer,
+                                   mjlib::micro::ErrorCallback callback) {
+  MJ_ASSERT(!impl_->callback_.valid());
+  MJ_ASSERT(tx_buffer.size() == static_cast<size_t>(rx_buffer.size()));
+  MJ_ASSERT(impl_->complete_flag_ == Impl::kIdle);
 
   impl_->callback_ = callback;
 
@@ -145,4 +150,6 @@ void HAL_SPI_ErrorCallback(SPI_HandleTypeDef* hspi) {
     if (element.spi == hspi) { element.impl->Error(); }
   }
 }
+}
+
 }
