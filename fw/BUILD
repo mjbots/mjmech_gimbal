@@ -38,9 +38,12 @@ mbed_binary(
         "fire_control.h",
         "fire_control.cc",
         "gimbal.cc",
+        "gimbal_assert.cc",
         "gimbal_stabilizer.h",
         "gimbal_stabilizer.cc",
         "gpio_pin.h",
+        "hardfault.s",
+        "gimbal_hardfault_handler.c",
         "imu_data.h",
         "irq_callback_table.h",
         "irq_callback_table.cc",
@@ -87,6 +90,7 @@ mbed_binary(
         "@moteus//mjlib/micro:static_function",
         "@moteus//mjlib/micro:telemetry_manager",
     ],
+    linker_script = "stm32f446.ld",
 )
 
 OCD = (

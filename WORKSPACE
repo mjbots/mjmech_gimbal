@@ -36,6 +36,8 @@ mbed_register(
             "MBED_CONF_RTOS_PRESENT": "0",
             "DEVICE_STDIO_MESSAGES": "0",
             "NDEBUG": "1",
+            "MBED_APP_START": "0x8010000",
+            "MBED_APP_SIZE": "0x0070000",
         },
     },
 )
