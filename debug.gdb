@@ -1,2 +1,2 @@
-dir bazel-mjmech_pi3_hat
+dir bazel-mjmech_gimbal
 target remote localhost:3333

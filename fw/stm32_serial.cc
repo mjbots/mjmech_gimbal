@@ -45,8 +45,8 @@ void EnableClock(UARTName uart) {
   //   __HAL_RCC_UART4_CLK_ENABLE();
   // } else if (uart == UART_5) {
   //   __HAL_RCC_UART5_CLK_ENABLE();
-  // } else if (uart == UART_6) {
-  //   __HAL_RCC_USART6_CLK_ENABLE();
+  } else if (uart == UART_6) {
+    __HAL_RCC_USART6_CLK_ENABLE();
   } else {
     MJ_ASSERT(false);
   }

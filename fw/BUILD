@@ -99,7 +99,7 @@ mbed_binary(
 OCD = (
     "openocd " +
     "-f /usr/share/openocd/scripts/interface/stlink-v2.cfg " +
-    "-f /usr/share/openocd/scripts/target/stm32f0x_stlink.cfg "
+    "-f /usr/share/openocd/scripts/target/stm32f4x_stlink.cfg "
 )
 
 genrule(
@@ -120,5 +120,5 @@ genrule(
     tags = ["manual"],
     srcs = ["gimbal.08000000.bin", "gimbal.08010000.bin"],
     outs = ["flash.stamp"],
-    cmd = (OCD + "-c init -c \"reset_config none separate; program $(location gimbal.0x8000000.bin) verify 0x8000000; program $(location gimbal.08010000.bin) verify reset exit 0x8010000\" && touch $@"),
+    cmd = (OCD + "-c init -c \"reset_config none separate; program $(location gimbal.08000000.bin) verify 0x8000000; program $(location gimbal.08010000.bin) verify reset exit 0x8010000\" && touch $@"),
 )
