@@ -61,6 +61,7 @@ mbed_binary(
         "stm32_bldc_pwm.cc",
         "stm32_flash.h",
         "stm32_flash.cc",
+        "stm32_gpio_pin.h",
         "stm32_hal_i2c.h",
         "stm32_hal_i2c.cc",
         "stm32_hal_spi.h",

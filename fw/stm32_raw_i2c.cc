@@ -68,9 +68,18 @@ uint16_t CalculateCCR(uint32_t pclk,
 
 I2C_TypeDef* GetI2C(int i2c_number) {
   switch (i2c_number) {
-    case 1: { return I2C1; }
-    case 2: { return I2C2; }
-    case 3: { return I2C3; }
+    case 1: {
+      __HAL_RCC_I2C1_CLK_ENABLE();
+      return I2C1;
+    }
+    case 2: {
+      __HAL_RCC_I2C2_CLK_ENABLE();
+      return I2C2;
+    }
+    case 3: {
+      __HAL_RCC_I2C3_CLK_ENABLE();
+      return I2C3;
+    }
   }
   MJ_ASSERT(false);
   return nullptr;

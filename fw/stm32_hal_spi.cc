@@ -18,11 +18,11 @@
 
 #include "fw/error.h"
 
-extern SPI_HandleTypeDef hspi3;
-
 namespace {
-SPI_HandleTypeDef* SelectSPI(int n) {
-  if (n == 3) { return &hspi3; }
+SPI_TypeDef* SelectSPI(int n) {
+  if (n == 3) {
+    return SPI3;
+  }
   MJ_ASSERT(false);
   return nullptr;
 }
@@ -40,16 +40,33 @@ namespace fw {
 class Stm32HalSPI::Impl {
  public:
   Impl(int spi_number, GPIO_TypeDef* cs_gpio, uint16_t cs_pin)
-      : spi_(SelectSPI(spi_number)),
-        cs_gpio_(cs_gpio),
+      : cs_gpio_(cs_gpio),
         cs_pin_(cs_pin) {
+
+    hspi_.Instance = SelectSPI(spi_number);
+
+    hspi_.Init.Mode = SPI_MODE_MASTER;
+    hspi_.Init.Direction = SPI_DIRECTION_2LINES;
+    hspi_.Init.DataSize = SPI_DATASIZE_8BIT;
+    hspi_.Init.CLKPolarity = SPI_POLARITY_LOW;
+    hspi_.Init.CLKPhase = SPI_PHASE_2EDGE;
+    hspi_.Init.NSS = SPI_NSS_SOFT;
+    hspi_.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_32;
+    hspi_.Init.FirstBit = SPI_FIRSTBIT_MSB;
+    hspi_.Init.TIMode = SPI_TIMODE_DISABLED;
+    hspi_.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLED;
+    hspi_.Init.CRCPolynomial = 10;
+
+    HAL_SPI_Init(&hspi_);
+
     for (auto& element: g_registry) {
       if (element.spi == nullptr) {
-        element.spi = spi_;
+        element.spi = &hspi_;
         element.impl = this;
         return;
       }
     }
+
     MJ_ASSERT(false);
   }
 
@@ -89,7 +106,7 @@ class Stm32HalSPI::Impl {
   void Complete() { complete_flag_ = kCompleted; }
   void Error() { error_code_ = 1; complete_flag_ = kError; }
 
-  SPI_HandleTypeDef* const spi_;
+  SPI_HandleTypeDef hspi_;
   GPIO_TypeDef* const cs_gpio_;
   const uint16_t cs_pin_;
 
@@ -124,7 +141,7 @@ void Stm32HalSPI::AsyncTransaction(const std::string_view& tx_buffer,
   HAL_GPIO_WritePin(impl_->cs_gpio_, impl_->cs_pin_, GPIO_PIN_RESET);
 
   auto result = HAL_SPI_TransmitReceive_DMA(
-      impl_->spi_,
+      &impl_->hspi_,
       reinterpret_cast<uint8_t*>(const_cast<char*>(tx_buffer.data())),
       reinterpret_cast<uint8_t*>(rx_buffer.data()),
       tx_buffer.size());

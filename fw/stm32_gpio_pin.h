@@ -1,4 +1,4 @@
-// Copyright 2015 Josh Pieper, jjp@pobox.com.  All rights reserved.
+// Copyright 2015-2019 Josh Pieper, jjp@pobox.com.  All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,9 +14,11 @@
 
 #pragma once
 
-#include "gpio_pin.h"
+#include "fw/gpio_pin.h"
 
-#include "gpio.h"
+#include "stm32f4xx_hal.h"
+
+namespace fw {
 
 class Stm32GpioPin : public GpioPin {
  public:
@@ -71,3 +73,5 @@ class Stm32GpioPin : public GpioPin {
   const int shift_;
   const uint32_t mask_;
 };
+
+}

@@ -16,8 +16,6 @@
 
 #include "stm32f4xx_hal.h"
 
-extern ADC_HandleTypeDef hadc1;
-
 namespace fw {
 
 namespace {
@@ -32,20 +30,46 @@ class Stm32AnalogSampler::Impl {
        mjlib::micro::PersistentConfig& persistent_config,
        mjlib::micro::TelemetryManager& telemetry)
       : clock_(clock) {
+    ADC_ChannelConfTypeDef sConfig;
+
+    /**Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of c \
+       onversion)
+    */
+    hadc_.Instance = ADC1;
+    hadc_.Init.ClockPrescaler = ADC_CLOCKPRESCALER_PCLK_DIV8;
+    hadc_.Init.Resolution = ADC_RESOLUTION12b;
+    hadc_.Init.ScanConvMode = DISABLE;
+    hadc_.Init.ContinuousConvMode = DISABLE;
+    hadc_.Init.DiscontinuousConvMode = DISABLE;
+    hadc_.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+    hadc_.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+    hadc_.Init.NbrOfConversion = 1;
+    hadc_.Init.DMAContinuousRequests = DISABLE;
+    hadc_.Init.EOCSelection = EOC_SINGLE_CONV;
+    HAL_ADC_Init(&hadc_);
+
+    /**Configure for the selected ADC regular channel its corresponding rank in the sequencer and \
+       its sample time.
+    */
+    sConfig.Channel = ADC_CHANNEL_TEMPSENSOR;
+    sConfig.Rank = 1;
+    sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+    HAL_ADC_ConfigChannel(&hadc_, &sConfig);
+
     data_updater_ = telemetry.Register("power", &data_);
   }
 
   void PollMillisecond() {
     if (configuring_) {
-      HAL_ADC_Start(&hadc1);
+      HAL_ADC_Start(&hadc_);
       configuring_ = false;
       return;
     }
     if (state_ != kIdle) {
       // We are looking for a conversion to have completed.
-      if (!__HAL_ADC_GET_FLAG(&hadc1, ADC_FLAG_EOC)) { return; }
+      if (!__HAL_ADC_GET_FLAG(&hadc_, ADC_FLAG_EOC)) { return; }
 
-      const uint16_t value = HAL_ADC_GetValue(&hadc1);
+      const uint16_t value = HAL_ADC_GetValue(&hadc_);
       switch (state_) {
         case kIdle: { MJ_ASSERT(false); break; }
         case kVRefInt: { data_.raw_vrefint = value; break; }
@@ -94,13 +118,14 @@ class Stm32AnalogSampler::Impl {
     // can't switch between things without clearing them ourselves.
     ADC->CCR &= ~ADC_CCR_TSVREFE;
     ADC->CCR &= ~ADC_CCR_VBATE;
-    HAL_ADC_ConfigChannel(&hadc1, &adc_conf);
+    HAL_ADC_ConfigChannel(&hadc_, &adc_conf);
     configuring_ = true;
   }
 
   MillisecondTimer& clock_;
   Data data_;
   mjlib::micro::StaticFunction<void ()> data_updater_;
+  ADC_HandleTypeDef hadc_;
 
   enum State {
     kIdle,

@@ -63,10 +63,10 @@ class SystemInfo::Impl {
     data_.pool_size = pool_.size();
     data_.pool_available = pool_.available();
 
-    extern char _heap_start;
-    extern char* heap_end;
+    // extern char _heap_start;
+    // extern char* heap_end;
 
-    data_.heap_size = heap_end - &_heap_start;
+    // data_.heap_size = heap_end - &_heap_start;
 
     data_updater_();
   }
