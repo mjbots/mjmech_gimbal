@@ -34,12 +34,48 @@ namespace fw {
 namespace {
 IRQn_Type FindUartRxIrq(USART_TypeDef* uart) {
   switch(reinterpret_cast<uint32_t>(uart)) {
+#if defined (USART1_BASE)
     case UART_1: return USART1_IRQn;
+#endif
+#if defined (USART2_BASE)
     case UART_2: return USART2_IRQn;
-    // case UART_3: return USART3_IRQn;
-    // case UART_4: return UART4_IRQn;
-    // case UART_5: return UART5_IRQn;
+#endif
+#if defined (USART3_BASE)
+    case UART_3: return USART3_IRQn;
+#endif
+#if defined (UART4_BASE)
+    case UART_4: return UART4_IRQn;
+#endif
+#if defined (USART4_BASE)
+    case UART_4: return USART4_IRQn;
+#endif
+#if defined (UART5_BASE)
+    case UART_5: return UART5_IRQn;
+#endif
+#if defined (USART5_BASE)
+    case UART_5: return USART5_IRQn;
+#endif
+#if defined (USART6_BASE)
     case UART_6: return USART6_IRQn;
+#endif
+#if defined (UART7_BASE)
+    case UART_7: return UART7_IRQn;
+#endif
+#if defined (USART7_BASE)
+    case UART_7: return USART7_IRQn;
+#endif
+#if defined (UART8_BASE)
+    case UART_8: return UART8_IRQn;
+#endif
+#if defined (USART8_BASE)
+    case UART_8: return USART8_IRQn;
+#endif
+#if defined (UART9_BASE)
+    case UART_9: return UART9_IRQn;
+#endif
+#if defined (UART10_BASE)
+    case UART_10: return UART10_IRQn;
+#endif
   }
   MJ_ASSERT(false);
   return {};
@@ -353,14 +389,22 @@ class Stm32F446AsyncUart::Impl {
 
     MJ_ASSERT(current_read_callback_.valid());
     {
-      auto copy = current_read_callback_;
-      auto rx_error = pending_rx_error_;
+      // Right now, we mark that we no longer want to get any more
+      // data on this callback.
+      //
+      // However, we enqueue the callback itself on the event queue to
+      // avoid recursion.
 
-      current_read_callback_ = {};
       current_read_data_ = {};
-      pending_rx_error_ = {};
+      event_queue_.Queue([this, bytes_read]() {
+          auto copy = current_read_callback_;
+          auto rx_error = pending_rx_error_;
 
-      copy(rx_error, bytes_read);
+          current_read_callback_ = {};
+          pending_rx_error_ = {};
+
+          copy(rx_error, bytes_read);
+       });
     }
 
     // If our DMA stream was disabled for some reason, start over
@@ -443,18 +487,30 @@ void Stm32F446AsyncUart::Poll() {
 
 Stm32F446AsyncUart::DmaPair Stm32F446AsyncUart::MakeDma(UARTName uart) {
   switch (uart) {
+#if defined (USART1_BASE)
     case UART_1:
       return { MAKE_UART(DMA2, 7, 4, HI), MAKE_UART(DMA2, 2, 4, LI), };
+#endif
+#if defined (USART2_BASE)
     case UART_2:
       return { MAKE_UART(DMA1, 6, 4, HI), MAKE_UART(DMA1, 5, 4, HI), };
-    // case UART_3:
-    //   return { MAKE_UART(DMA1, 3, 4, LI), MAKE_UART(DMA1, 1, 4, LI), };
-    // case UART_4:
-    //   return { MAKE_UART(DMA1, 4, 4, HI), MAKE_UART(DMA1, 2, 4, LI), };
-    // case UART_5:
-    //   return { MAKE_UART(DMA1, 7, 4, HI), MAKE_UART(DMA1, 0, 4, LI), };
+#endif
+#if defined (USART3_BASE)
+    case UART_3:
+      return { MAKE_UART(DMA1, 3, 4, LI), MAKE_UART(DMA1, 1, 4, LI), };
+#endif
+#if defined (UART4_BASE)
+    case UART_4:
+      return { MAKE_UART(DMA1, 4, 4, HI), MAKE_UART(DMA1, 2, 4, LI), };
+#endif
+#if defined (UART5_BASE)
+    case UART_5:
+      return { MAKE_UART(DMA1, 7, 4, HI), MAKE_UART(DMA1, 0, 4, LI), };
+#endif
+#if defined (USART6_BASE)
     case UART_6:
       return { MAKE_UART(DMA2, 6, 5, HI), MAKE_UART(DMA2, 1, 5, LI), };
+#endif
   }
   MJ_ASSERT(false);
   return {};
