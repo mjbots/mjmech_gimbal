@@ -1,6 +1,5 @@
- * Verify agitator output works
+ * IMU doesn't start reliably on power-on
  * Verify laser output works
- * Verify weapon output works
 
  * Rip out all the CubeMX crap and integrate more cleanly
  * Get running at 800Hz
@@ -9,3 +8,4 @@ DONE 2019-04-27
  * Got I2C and SPI working
  * Got analog sampling working
  * Got BLDC outputs work
+ * Got agitator and weapon outputs to work
