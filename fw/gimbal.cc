@@ -86,6 +86,34 @@ void UpdateLEDs(uint32_t count) {
   }
 }
 
+void InitDma() {
+    /* DMA controller clock enable */
+  __DMA1_CLK_ENABLE();
+  __DMA2_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  HAL_NVIC_SetPriority(DMA1_Stream0_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream0_IRQn);
+  HAL_NVIC_SetPriority(DMA1_Stream1_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream1_IRQn);
+  HAL_NVIC_SetPriority(DMA1_Stream2_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream2_IRQn);
+  HAL_NVIC_SetPriority(DMA1_Stream3_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream3_IRQn);
+  HAL_NVIC_SetPriority(DMA1_Stream4_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream4_IRQn);
+  HAL_NVIC_SetPriority(DMA1_Stream5_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream5_IRQn);
+  HAL_NVIC_SetPriority(DMA1_Stream6_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream6_IRQn);
+  HAL_NVIC_SetPriority(DMA1_Stream7_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream7_IRQn);
+  HAL_NVIC_SetPriority(DMA2_Stream1_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA2_Stream1_IRQn);
+  HAL_NVIC_SetPriority(DMA2_Stream6_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA2_Stream6_IRQn);
+}
+
 void InitGpio() {
   GPIO_InitTypeDef GPIO_InitStruct;
 
@@ -152,6 +180,79 @@ void InitGpio() {
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+
+  // ADC1
+  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2;
+  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+
+  // SPI3
+  GPIO_InitStruct.Pin = GPIO_PIN_10|GPIO_PIN_11|GPIO_PIN_12;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_HIGH;
+  GPIO_InitStruct.Alternate = GPIO_AF6_SPI3;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  HAL_NVIC_SetPriority(SPI3_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(SPI3_IRQn);
+
+  // I2C1
+
+#ifdef MJMECH_DISCOVERY
+  /* TODO jpieper: On the actual gimbal board, this will be pins 6
+   * and 7. However, on the discovery board, it is pins 6 and 9. */
+  GPIO_InitStruct.Pin = GPIO_PIN_6|GPIO_PIN_9;
+#else
+  GPIO_InitStruct.Pin = GPIO_PIN_6|GPIO_PIN_7;
+#endif
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Speed = GPIO_SPEED_HIGH;
+  GPIO_InitStruct.Alternate = GPIO_AF4_I2C1;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+
+  // I2C2
+
+  GPIO_InitStruct.Pin = GPIO_PIN_10;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Speed = GPIO_SPEED_HIGH;
+  GPIO_InitStruct.Alternate = GPIO_AF4_I2C2;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+#ifdef MJMECH_DISCOVERY
+  /* NOTE jpieper: On the discovery board, we don't have an I2C2, so
+   * we just disable this pin for now. */
+#else
+  GPIO_InitStruct.Pin = GPIO_PIN_9;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Speed = GPIO_SPEED_HIGH;
+  GPIO_InitStruct.Alternate = GPIO_AF9_I2C2;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+#endif
+
+
+  // I2C3
+
+  GPIO_InitStruct.Pin = GPIO_PIN_9;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Speed = GPIO_SPEED_HIGH;
+  GPIO_InitStruct.Alternate = GPIO_AF4_I2C3;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  GPIO_InitStruct.Pin = GPIO_PIN_8;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Speed = GPIO_SPEED_HIGH;
+  GPIO_InitStruct.Alternate = GPIO_AF4_I2C3;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
 }
 
 void InitTimers(TIM_HandleTypeDef* htim2,
@@ -246,25 +347,6 @@ void InitTimers(TIM_HandleTypeDef* htim2,
     sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
     HAL_TIM_PWM_ConfigChannel(htim4, &sConfigOC, TIM_CHANNEL_3);
   }
-
-  {
-    TIM_ClockConfigTypeDef sClockSourceConfig;
-    TIM_MasterConfigTypeDef sMasterConfig;
-
-    htim5->Instance = TIM5;
-    htim5->Init.Prescaler = 4800;
-    htim5->Init.CounterMode = TIM_COUNTERMODE_UP;
-    htim5->Init.Period = 4294967295u;
-    htim5->Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-    HAL_TIM_Base_Init(htim5);
-
-    sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-    HAL_TIM_ConfigClockSource(htim5, &sClockSourceConfig);
-
-    sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-    sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-    HAL_TIMEx_MasterConfigSynchronization(htim5, &sMasterConfig);
-  }
 }
 }
 
@@ -274,6 +356,7 @@ using namespace mjlib;
 
 int main(void) {
   InitGpio();
+  InitDma();
   TIM_HandleTypeDef htim2;
   TIM_HandleTypeDef htim3;
   TIM_HandleTypeDef htim4;
@@ -440,22 +523,12 @@ int main(void) {
 //       stabilizer, imu, yaw_bldc_encoder, fire_control);
 //   HerkulexProtocol herkulex(pool, herkulex_stream, operations);
 
-
 //   herkulex.AsyncStart([&](int error) {
 //       if (!error) {
 //         system_status.herkulex_init = true;
 //         system_status.herkulex_error = error;
 //       }
 //     });
-
-//   uint32_t old_tick = 0;
-//   while (1) {
-//     if (new_tick != old_tick) {
-//       HAL_IWDG_Refresh(&hiwdg);
-
-//     }
-
-//   }
 
   return 0;
 }
@@ -464,4 +537,5 @@ extern "C" {
   void abort() {
     mbed_die();
   }
+
 }

@@ -29,8 +29,8 @@ namespace {
 typedef Stm32RawI2C::Parameters Parameters;
 
 const int kResetTimeoutCount = 1000;
-const int kTransferTimeoutMilliseconds = 2;
-const int kErrorTimeoutMilliseconds = 1;
+const int kTransferTimeout_us = 2000;
+const int kErrorTimeout_us = 1000;
 
 const uint16_t kSr1Errors = (
             I2C_SR1_TIMEOUT |
@@ -194,7 +194,7 @@ class Stm32RawI2C::Impl {
     // Now that we're good to go, reconfigure the I2C peripheral's
     // registers.
     Init();
- }
+  }
 
   void Poll() {
     const uint16_t sr1 = i2c_->SR1;
@@ -237,7 +237,7 @@ class Stm32RawI2C::Impl {
       case kError: {
         const uint32_t now = clock_.read_us();
         const uint32_t delta = now - start_time_;
-        if (delta > (kErrorTimeoutMilliseconds * 10)) {
+        if (delta > kErrorTimeout_us) {
           // Add an extra flag to indicate we had to try a bus reset.
           context_.error_result |= (0x100 << 16);
           ResetBus();
@@ -377,7 +377,7 @@ class Stm32RawI2C::Impl {
       case kStop: {
         const uint32_t now = clock_.read_us();
         const uint32_t delta = now - start_time_;
-        if (delta > (kTransferTimeoutMilliseconds * 10)) {
+        if (delta > kTransferTimeout_us) {
           context_.error_result = (18 << 16) | i2c_->SR1;
           state_ = kError;
           need_to_read_ = 0;

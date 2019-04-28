@@ -26,7 +26,7 @@ class MillisecondTimer {
     handle_.Instance = TIM5;
     handle_.Init.Period = 0xFFFFFFFF;
     handle_.Init.Prescaler =
-        (uint32_t)(SystemCoreClock / 2U / 1000000U) - 1;  // 1 us tick
+        (uint32_t)(SystemCoreClock / 1U / 1000000U) - 1;  // 1 us tick
     handle_.Init.ClockDivision = 0;
     handle_.Init.CounterMode = TIM_COUNTERMODE_UP;
     handle_.Init.RepetitionCounter = 0;

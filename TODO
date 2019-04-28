@@ -1,0 +1,11 @@
+ * Get analog sampling working
+ * Verify BLDC outputs work
+ * Verify agitator output works
+ * Verify laser output works
+ * Verify weapon output works
+
+ * Rip out all the CubeMX crap and integrate more cleanly
+ * Get running at 800Hz
+
+DONE 2019-04-27
+ * Got I2C and SPI working

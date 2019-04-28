@@ -21,14 +21,19 @@
 namespace {
 SPI_TypeDef* SelectSPI(int n) {
   if (n == 3) {
+    __SPI3_CLK_ENABLE();
     return SPI3;
   }
+  // If you want to support anything else, you will need to do
+  // something more generic about the interrupt handlers!
   MJ_ASSERT(false);
   return nullptr;
 }
 
 struct Registry {
   SPI_HandleTypeDef* spi = nullptr;
+  DMA_HandleTypeDef* dma_rx = nullptr;
+  DMA_HandleTypeDef* dma_tx = nullptr;
   fw::Stm32HalSPI::Impl* impl = nullptr;
 };
 
@@ -59,13 +64,48 @@ class Stm32HalSPI::Impl {
 
     HAL_SPI_Init(&hspi_);
 
+    // TODO(jpieper): These DMA things are hard-coded for SPI3.
+    hdma_rx_.Instance = DMA1_Stream2;
+    hdma_rx_.Init.Channel = DMA_CHANNEL_0;
+    hdma_rx_.Init.Direction = DMA_PERIPH_TO_MEMORY;
+    hdma_rx_.Init.PeriphInc = DMA_PINC_DISABLE;
+    hdma_rx_.Init.MemInc = DMA_MINC_ENABLE;
+    hdma_rx_.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
+    hdma_rx_.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
+    hdma_rx_.Init.Mode = DMA_NORMAL;
+    hdma_rx_.Init.Priority = DMA_PRIORITY_LOW;
+    hdma_rx_.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
+    HAL_DMA_Init(&hdma_rx_);
+
+    __HAL_LINKDMA(&hspi_, hdmarx, hdma_rx_);
+
+    hdma_tx_.Instance = DMA1_Stream5;
+    hdma_tx_.Init.Channel = DMA_CHANNEL_0;
+    hdma_tx_.Init.Direction = DMA_MEMORY_TO_PERIPH;
+    hdma_tx_.Init.PeriphInc = DMA_PINC_DISABLE;
+    hdma_tx_.Init.MemInc = DMA_MINC_ENABLE;
+    hdma_tx_.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
+    hdma_tx_.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
+    hdma_tx_.Init.Mode = DMA_NORMAL;
+    hdma_tx_.Init.Priority = DMA_PRIORITY_LOW;
+    hdma_tx_.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
+    HAL_DMA_Init(&hdma_tx_);
+
+    __HAL_LINKDMA(&hspi_, hdmatx, hdma_tx_);
+
+
     for (auto& element: g_registry) {
       if (element.spi == nullptr) {
         element.spi = &hspi_;
+        element.dma_tx = &hdma_tx_;
+        element.dma_rx = &hdma_rx_;
         element.impl = this;
         return;
       }
     }
+
+    HAL_NVIC_SetPriority(SPI3_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(SPI3_IRQn);
 
     MJ_ASSERT(false);
   }
@@ -107,6 +147,9 @@ class Stm32HalSPI::Impl {
   void Error() { error_code_ = 1; complete_flag_ = kError; }
 
   SPI_HandleTypeDef hspi_;
+  DMA_HandleTypeDef hdma_rx_;
+  DMA_HandleTypeDef hdma_tx_;
+
   GPIO_TypeDef* const cs_gpio_;
   const uint16_t cs_pin_;
 
@@ -167,6 +210,36 @@ void HAL_SPI_ErrorCallback(SPI_HandleTypeDef* hspi) {
     if (element.spi == hspi) { element.impl->Error(); }
   }
 }
+}
+
+}
+
+extern "C" {
+    void DMA1_Stream2_IRQHandler(void)
+{
+  for (auto& element: g_registry) {
+    if (element.dma_rx) {
+      HAL_DMA_IRQHandler(element.dma_rx);
+    }
+  }
+}
+
+  void DMA1_Stream5_IRQHandler(void)
+{
+  for (auto& element: g_registry) {
+    if (element.dma_tx) {
+      HAL_DMA_IRQHandler(element.dma_tx);
+    }
+  }
+}
+
+  void SPI3_IRQHandler(void)
+{
+  for (auto& element: g_registry) {
+    if (element.spi) {
+      HAL_SPI_IRQHandler(element.spi);
+    }
+  }
 }
 
 }
