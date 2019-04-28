@@ -86,6 +86,10 @@ void UpdateLEDs(uint32_t count) {
   }
 }
 
+void InitAdc() {
+  __ADC1_CLK_ENABLE();
+}
+
 void InitDma() {
     /* DMA controller clock enable */
   __DMA1_CLK_ENABLE();
@@ -357,6 +361,7 @@ using namespace mjlib;
 int main(void) {
   InitGpio();
   InitDma();
+  InitAdc();
   TIM_HandleTypeDef htim2;
   TIM_HandleTypeDef htim3;
   TIM_HandleTypeDef htim4;
