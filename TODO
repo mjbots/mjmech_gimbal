@@ -1,4 +1,3 @@
- * Verify BLDC outputs work
  * Verify agitator output works
  * Verify laser output works
  * Verify weapon output works
@@ -9,3 +8,4 @@
 DONE 2019-04-27
  * Got I2C and SPI working
  * Got analog sampling working
+ * Got BLDC outputs work
