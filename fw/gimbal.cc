@@ -411,7 +411,12 @@ int main(void) {
       return options;
     }());
 
-  multiplex::MicroServer multiplex_protocol(&pool, &rs485, {});
+  multiplex::MicroServer multiplex_protocol(&pool, &rs485, []() {
+      multiplex::MicroServer::Options options;
+      options.default_id = 32;
+      return options;
+    }());
+
   micro::AsyncStream* serial = multiplex_protocol.MakeTunnel(1);
 
   micro::AsyncExclusive<micro::AsyncWriteStream> write_stream(serial);
@@ -539,6 +544,7 @@ int main(void) {
     yaw_encoder.Poll();
     pitch_encoder.Poll();
     system_info.MainLoopCount();
+    moteus_server.Poll();
 
     const auto new_time = clock.read_ms();
     if (new_time != old_time) {

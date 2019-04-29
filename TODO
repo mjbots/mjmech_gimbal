@@ -1,8 +1,10 @@
- * create register protocol
  * Move all pcb from mjmech repo and delete legacy firmware from
    mjmech
 
  * Rip out all the CubeMX crap and integrate more cleanly
+
+DONE 2019-04-29
+ * Implemented register protocol
 
 DONE 2019-04-28
  * IMU not starting reliably was a result of using read_us when the
