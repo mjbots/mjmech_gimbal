@@ -1,3 +1,7 @@
+ * create register protocol
+ * Move all pcb from mjmech repo and delete legacy firmware from
+   mjmech
+
  * Rip out all the CubeMX crap and integrate more cleanly
 
 DONE 2019-04-28

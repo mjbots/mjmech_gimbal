@@ -31,6 +31,7 @@
 #include "fw/bldc_encoder.h"
 #include "fw/bmi160_driver.h"
 #include "fw/fire_control.h"
+#include "fw/gimbal_moteus_server.h"
 #include "fw/gimbal_stabilizer.h"
 #include "fw/mahony_imu.h"
 #include "fw/millisecond_timer.h"
@@ -495,6 +496,9 @@ int main(void) {
                            laser_enable, pwm_enable, aeg_pwm, agitator_pwm,
                            arm_switch, arm_led);
 
+  GimbalMoteusServer moteus_server(
+      pool, stabilizer, imu, yaw_bldc_encoder, fire_control);
+
   command_manager.Register(
       "imu", [&imu](auto&& _1, auto&& _2) { imu.Command(_1, _2); });
   command_manager.Register(
@@ -514,7 +518,7 @@ int main(void) {
   telemetry_manager.Register("system_status", &system_status);
 
   command_manager.AsyncStart();
-  multiplex_protocol.Start(nullptr);
+  multiplex_protocol.Start(&moteus_server);
 
   bmi160.AsyncStart([&](auto error) {
       if (!error) {
@@ -552,18 +556,6 @@ int main(void) {
       old_time = new_time;
     }
   }
-
-
-//   GimbalHerkulexOperations operations(
-//       stabilizer, imu, yaw_bldc_encoder, fire_control);
-//   HerkulexProtocol herkulex(pool, herkulex_stream, operations);
-
-//   herkulex.AsyncStart([&](int error) {
-//       if (!error) {
-//         system_status.herkulex_init = true;
-//         system_status.herkulex_error = error;
-//       }
-//     });
 
   return 0;
 }

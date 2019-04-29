@@ -39,6 +39,8 @@ mbed_binary(
         "fire_control.cc",
         "gimbal.cc",
         "gimbal_assert.cc",
+        "gimbal_moteus_server.h",
+        "gimbal_moteus_server.cc",
         "gimbal_stabilizer.h",
         "gimbal_stabilizer.cc",
         "gpio_pin.h",
