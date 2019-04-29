@@ -1,8 +1,12 @@
- * IMU doesn't start reliably on power-on
- * Verify laser output works
-
  * Rip out all the CubeMX crap and integrate more cleanly
- * Get running at 800Hz
+
+DONE 2019-04-28
+ * IMU not starting reliably was a result of using read_us when the
+   old code was expecting a 100us clock tick.
+ * Verified laser, agitator, AEG and gimbal motors all work properly.
+   Had to turn down the kd term some, probably because the IMU is
+   mounted closer to the motor.
+ * Verified it is running at 800Hz already
 
 DONE 2019-04-27
  * Got I2C and SPI working
