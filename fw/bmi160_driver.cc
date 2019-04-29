@@ -291,7 +291,7 @@ class Bmi160Driver::Impl {
             this->delay_callback_ = {};
             callback(error);
           }
-          this->delay_end_ = this->clock_.read_us() + delay_ms * 10;
+          this->delay_end_ = this->clock_.read_us() + delay_ms * 1000;
         });
   }
 
