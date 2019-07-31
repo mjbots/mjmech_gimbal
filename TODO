@@ -1,7 +1,21 @@
- * Move all pcb from mjmech repo and delete legacy firmware from
-   mjmech
+ * Test restarting IMU from a wedged state via watchdog
+ * Setting yaw center position interacts with phase encoding in an
+   annoying way
+ * Update counts to be 10ms not 100ms, so that the fire count can be
+   more precisely controlled?
 
  * Rip out all the CubeMX crap and integrate more cleanly
+
+r4 ERRATA
+  * rs485 has A/B swapped vs pi3 hat and IMU junction board... :(
+  * need a lot more bulk capacitance for the AEG, at least 100uF
+    effective at 20V, probably more like 200uF.. either that or get a
+    driver that allows a substantially higher PWM frequency
+  * mounting holes leave a lot of wiggle room when installed
+
+DONE 2019-05-30
+ * Moved all the schematic and board layout out of the mech repository
+   here
 
 DONE 2019-04-29
  * Implemented register protocol
